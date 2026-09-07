@@ -11,7 +11,7 @@ import { PetFoodArt } from './pet-food-art.js'
 
 export type PetPageSection = 'shop' | 'pets' | 'bag' | 'settings' | 'ledger'
 type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void }
-const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 16 }
+const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), min(100%, 340px)))', gap: 16 }
 function Preview({ entity, skinId }: { entity: PetEntity; skinId?: string }) {
   const definition = useMemo(() => petAppearance(entity, skinId), [entity.species, entity.skinId, skinId])
   return <Avatar className="pet-page-preview" definition={definition} interactive={false} autoplay={false} aria-label={`${entity.name}外观预览`}
@@ -66,7 +66,10 @@ function Shop({ state, busy, run }: Commands) {
 function CareStats({ entity }: { entity: PetEntity }) {
   return <Stack gap="small">
     <Text>{entity.status === 'dead' ? '已逝去' : entity.status === 'buried' ? '已安葬' : careWarning(entity.care)}</Text>
-    {(['fullness', 'energy', 'health'] as const).map((key, index) => <label key={key}><Stack direction="row" justify="space-between" gap="small"><span>{['饱食度', '精力', '健康'][index]} {Math.round(entity.care[key])}/100</span><meter aria-label={['饱食度', '精力', '健康'][index]} min={0} max={100} value={entity.care[key]} /></Stack></label>)}
+    {(['fullness', 'energy', 'health'] as const).map((key, index) => <label className="pet-care-stat" key={key}>
+      <span className="pet-care-stat-label"><span>{['饱食度', '精力', '健康'][index]}</span><span>{Math.round(entity.care[key])}/100</span></span>
+      <meter aria-label={['饱食度', '精力', '健康'][index]} min={0} max={100} value={entity.care[key]} />
+    </label>)}
     <Text tone="muted">体重 {entity.care.weight.toFixed(2)} kg · {petWeightLabel(entity)}</Text>
   </Stack>
 }
@@ -88,8 +91,10 @@ function PetCard({ entity, state, busy, run }: Commands & { entity: PetEntity })
     <form onSubmit={event => { event.preventDefault(); run({ type: 'rename', petId: entity.id, name }) }}>
       <Stack gap="small">
         <label htmlFor={`name-${entity.id}`}>名字</label>
-        <input id={`name-${entity.id}`} value={name} maxLength={24} required disabled={busy} onChange={event => setName(event.currentTarget.value)} />
-        <Button type="submit" disabled={busy || !name.trim() || name.trim() === entity.name}>保存名字</Button>
+        <Stack direction="row" gap="small" align="center">
+          <input className="pet-name-input" id={`name-${entity.id}`} value={name} maxLength={24} required disabled={busy} onChange={event => setName(event.currentTarget.value)} />
+          <Button type="submit" disabled={busy || !name.trim() || name.trim() === entity.name}>保存</Button>
+        </Stack>
       </Stack>
     </form>
     <Stack direction="row" wrap gap="small">
@@ -176,7 +181,15 @@ export function PetPage({ client, section }: { client: PetClient; section: PetPa
   if (!snapshot.state) return <EmptyState title={snapshot.error ? '暂时无法读取宠物' : '正在准备宠物…'} description={snapshot.error ?? undefined} />
   const props = { state: snapshot.state, busy: snapshot.busy, run }
   return <Stack gap="large" aria-busy={snapshot.busy}>
-    <style>{'.pet-page-preview>.interactive-avatar{width:100%;height:100%;box-sizing:border-box}'}</style>
+    <style>{`
+      .pet-page-preview>.interactive-avatar{width:100%;height:100%;box-sizing:border-box}
+      .pet-care-stat{display:grid;gap:6px}
+      .pet-care-stat-label{display:flex;justify-content:space-between;gap:12px;font-size:.9em}
+      .pet-care-stat meter{display:block;width:100%;height:8px}
+      .pet-name-input{min-width:0;width:100%;flex:1;box-sizing:border-box;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:8px;padding:8px 10px;background:transparent;color:inherit;font:inherit}
+      .pet-name-input:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+      .pet-name-input:disabled{opacity:.55}
+    `}</style>
     {(localError || snapshot.error) && <Text role="alert" tone="danger">{localError || snapshot.error}</Text>}
     {section === 'shop' ? <Shop {...props} /> : section === 'pets' ? <Pets {...props} /> : section === 'bag' ? <Bag {...props} />
       : section === 'settings' ? <Settings {...props} /> : <Ledger state={snapshot.state} />}
