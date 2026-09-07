@@ -4,6 +4,7 @@ import { type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/a
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import { createPetShapeTimeline } from './pet-scene-shape.js'
 import { advanceScene, reconcileSceneBodies, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
+import { advanceSceneGaze, captureSceneFrame, sameSceneRegion, secondarySceneMotion, type RenderBody, type SceneRegion } from './pet-scene-render.js'
 
 export interface PetSceneEntity { id: string; name: string; x: number; sizeScale?: number; definition: AvatarDefinition }
 export interface PetSceneProps {
@@ -27,28 +28,20 @@ const PetAvatarGeometry = memo(function PetAvatarGeometry({ definition, theme, t
     timeline={timeline} timelineTimeMs={time}
     style={{ display: 'block', width: '100%', height: '100%', background: 'transparent' }} />
 })
-const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now, followPointer }: {
-  entity: PetSceneEntity; body: SceneBody; state: CordisXReactVisualProps['state']; now: number; followPointer: boolean
+const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now }: {
+  entity: PetSceneEntity; body: RenderBody; state: CordisXReactVisualProps['state']; now: number
 }) {
   const diameter = sceneDiameter(state.bounds.width)
   const rollTimeline = useMemo(() => createPetShapeTimeline(entity.definition), [entity.definition])
   const liftTimeline = useMemo(() => createPetShapeTimeline(entity.definition, true), [entity.definition])
   const lifted = body.lift > .001 && body.pose.ball < .001
-  const timeline = lifted ? liftTimeline : rollTimeline
+  // A zero-progress morph still makes Avatar project a complete surface mesh.
+  // Resting, walking and hopping need only their ordinary shape and CSS motion.
+  const timeline = lifted ? liftTimeline : body.pose.ball > .001 ? rollTimeline : undefined
   const falling = body.y < 0 && !body.dragging
-  const gaze = useRef({ yaw: 0, pitch: 0 })
-  const fixed = !followPointer || body.menuOpen || body.dragging || falling || body.mode !== 'rest'
-  const pointer = state.pointer
-  if (fixed) gaze.current = { yaw: 0, pitch: 0 }
-  else if (pointer) {
-    const yaw = Math.max(-.3, Math.min(.3, (pointer.x * state.bounds.width - body.x - diameter / 2) / 700))
-    const pitch = Math.max(-.25, Math.min(.25, (pointer.y * state.bounds.height - state.bounds.height - 56 + diameter / 2) / 700))
-    // Retain last direction on leave; interpolate a different re-entry position.
-    gaze.current = { yaw: gaze.current.yaw + (yaw - gaze.current.yaw) * .35, pitch: gaze.current.pitch + (pitch - gaze.current.pitch) * .35 }
-  }
   const pose = body.pose
-  const yaw = Math.round(gaze.current.yaw * 100) / 100
-  const pitch = Math.round(gaze.current.pitch * 100) / 100
+  const yaw = body.gazeYaw
+  const pitch = body.gazePitch
   const eyes = Math.round(pose.eyes * 100) / 100
   const irritation = Math.round(body.irritation * 100) / 100
   const definition = useMemo(() => ({ ...entity.definition, scene: { ...entity.definition.scene,
@@ -61,10 +54,7 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now, follow
       leftEyeRotation: -16 * irritation, rightEyeRotation: 16 * irritation,
     },
   } }), [entity.definition, yaw, pitch, body.dragging, falling, eyes, irritation])
-  const sampledNow = body.pausedSince ?? now
-  const landed = sampledNow - body.landing
-  const bounce = !state.reducedMotion && landed >= 0 && landed < 340 ? Math.sin(landed / 340 * Math.PI * 2) * Math.exp(-landed / 140) : 0
-  const poke = state.reducedMotion ? 0 : Math.sin((sampledNow - body.lastInteraction) / 45) * Math.exp(-(sampledNow - body.lastInteraction) / 250) * body.irritation
+  const { bounce, poke } = secondarySceneMotion(body, now, state.reducedMotion)
   return <span className="pet-scene-entity" data-pet-id={entity.id} data-pet-behavior={body.dragging ? 'drag' : falling ? 'fall' : body.mode}
     aria-hidden="true" style={{ position: 'absolute', display: 'block', width: diameter, height: diameter,
       left: body.x + pose.dx, bottom: -56 - body.y - pose.y, pointerEvents: 'none', zIndex: body.dragging ? 2 : 1 }}>
@@ -76,14 +66,16 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now, follow
     </span>
     </span>
   </span>
-})
+}, (a,b) => a.body === b.body && a.entity.definition === b.entity.definition && a.entity.id === b.entity.id
+  && a.state.theme === b.state.theme && a.state.bounds.width === b.state.bounds.width
+  && a.state.reducedMotion === b.state.reducedMotion)
 
 /** One owned animation loop and one public interaction subscription per entity. */
 export function PetScene(props: PetSceneProps) {
   const latest = useRef(props)
   latest.current = props
   const bodies = useRef<SceneBody[]>([])
-  const [frame, setFrame] = useState({ now: 0, bodies: [] as SceneBody[] })
+  const [frame, setFrame] = useState({ now: 0, bodies: [] as RenderBody[] })
   const entityKeys = props.entities.map(entity => entity.id).join('\0')
   const restingKey = useRef('')
   const reportResting = () => {
@@ -92,7 +84,7 @@ export function PetScene(props: PetSceneProps) {
     if (key !== restingKey.current) { restingKey.current = key; latest.current.onRestingChange?.(ids) }
   }
   const lastFeedback = useRef<number | undefined>(undefined)
-  const bindings = useRef(new Map<string, { handle: NonNullable<CordisXReactVisualProps['drag']>; release: () => void }>())
+  const bindings = useRef(new Map<string, { handle: NonNullable<CordisXReactVisualProps['drag']>; release: () => void; region?: SceneRegion }>())
   useEffect(() => {
     const now = performance.now()
     const retainedIds = new Set(bodies.current.map(body => body.id))
@@ -131,6 +123,9 @@ export function PetScene(props: PetSceneProps) {
         unsubscribe(); handle.setRegion(null); body.dragging = false; body.pressed = false; body.menuOpen = false
       } })
     }
+    // Seed visible entities synchronously after reconciliation. A remount/fast
+    // refresh must not depend on the first animation frame to show its pets.
+    setFrame(previous => ({ now, bodies: captureSceneFrame(bodies.current,previous.bodies,now,props.state.reducedMotion) }))
     reportResting()
     // Retained ID/handle pairs keep gesture state when another pet joins/leaves.
   }, [entityKeys, props.dragFor])
@@ -189,11 +184,21 @@ export function PetScene(props: PetSceneProps) {
         if (body.mode === 'roll' && !entity?.definition.scene.entity.parts.some(part => part.face)) {
           body.mode = 'hop'; body.started = now
         }
-        current.dragFor(body.id)?.setRegion({ ...sceneHitRegion(body, { width, height }),
-          label: `${entity?.name ?? 'Pet'}: ${current.draggable === false ? 'click to play' : 'drag to move; click to play'}` })
+        advanceSceneGaze(body, { width, height }, current.state.pointer, current.followPointer !== false)
+        const region = { ...sceneHitRegion(body, { width, height }),
+          label: `${entity?.name ?? 'Pet'}: ${current.draggable === false ? 'click to play' : 'drag to move; click to play'}` }
+        const binding = bindings.current.get(body.id)
+        if (binding && !sameSceneRegion(binding.region,region)) {
+          binding.region = region
+          binding.handle.setRegion(region)
+        }
       }
       reportResting()
-      setFrame({ now, bodies: bodies.current.map(body => ({ ...body, pose: { ...body.pose } })) })
+      setFrame(previous => {
+        const next = captureSceneFrame(bodies.current,previous.bodies,now,current.state.reducedMotion)
+        return next.length === previous.bodies.length && next.every((body,index) => body === previous.bodies[index])
+          ? previous : { now, bodies: next }
+      })
     }
     animationFrame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(animationFrame)
@@ -202,7 +207,7 @@ export function PetScene(props: PetSceneProps) {
     <style>{'.pet-scene .oneworks-avatar,.pet-scene .oneworks-avatar *{box-sizing:border-box}.pet-scene .oneworks-avatar>.interactive-avatar{width:100%;height:100%}'}</style>
     {props.entities.map(entity => {
       const body = frame.bodies.find(item => item.id === entity.id)
-      return body ? <SceneAvatar key={entity.id} entity={entity} body={body} state={props.state} now={frame.now} followPointer={props.followPointer !== false} /> : null
+      return body ? <SceneAvatar key={entity.id} entity={entity} body={body} state={props.state} now={frame.now} /> : null
     })}
   </span>
 }
