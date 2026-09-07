@@ -150,3 +150,37 @@ test('resting set uses stable identity order and excludes waking or manipulated 
   assert.deepEqual(restingSceneIds([b,c,a]),['b'])
   assert.deepEqual(restingSceneIds([c]),[])
 })
+
+test('static settings retain sleep care state without decorative motion and clicks or drags wake it', () => {
+  for(const staticOptions of [{reducedMotion:true},{idleAnimations:false}]) {
+    const a=body()
+    const settings={...opts,...staticOptions}
+    advanceScene([a],bounds,61000,32,settings)
+    assert.equal(a.mode,'sleep');assert.deepEqual(restingSceneIds([a]),['cat'])
+    assert.equal(a.pose.eyes,.06)
+    assert.equal(a.pose.scaleX,1);assert.equal(a.pose.scaleY,1)
+    assert.equal(a.pose.dx,0);assert.equal(a.pose.y,0);assert.equal(a.pose.angle,0)
+    const slept=structuredClone(a.pose)
+    advanceScene([a],bounds,65000,32,settings)
+    assert.deepEqual(a.pose,slept)
+    inputSceneBody(a,{phase:'activate',deltaX:0,deltaY:0},bounds,65001)
+    advanceScene([a],bounds,65032,32,settings)
+    assert.equal(a.mode,'rest');assert.equal(a.pose.eyes,1)
+    assert.deepEqual(restingSceneIds([a]),[])
+    advanceScene([a],bounds,130000,32,settings)
+    assert.equal(a.mode,'sleep')
+    inputSceneBody(a,{phase:'start',deltaX:0,deltaY:0},bounds,130001)
+    inputSceneBody(a,{phase:'move',deltaX:5,deltaY:-20},bounds,130033)
+    assert.deepEqual(restingSceneIds([a]),[])
+    assert.equal(a.dragging,true)
+  }
+})
+test('re-enabling animations retains a settled sleeping face and resting position', () => {
+  const a=body()
+  advanceScene([a],bounds,61000,32,{...opts,idleAnimations:false})
+  const x=a.x
+  advanceScene([a],bounds,61032,32,opts)
+  assert.equal(a.mode,'sleep');assert.ok(Math.abs(a.pose.eyes-.06)<.00001)
+  assert.ok(Math.abs(a.pose.scaleY-1)<.012)
+  assert.equal(a.x,x);assert.equal(a.pose.dx,0);assert.equal(a.y,0)
+})

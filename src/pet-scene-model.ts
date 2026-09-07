@@ -4,7 +4,7 @@ export interface SceneEntity { id: string; x: number; sizeScale?: number }
 export interface SceneBody {
   id: string; sizeScale: number; storedX: number; expectedPositions: number[]; x: number; y: number; velocity: number; menuOpen: boolean; dragging: boolean; pressed: boolean;
   startX: number; startY: number; mode: PetIdleKind; started: number; lastInteraction: number;
-  recoverUntil: number; pausedSince?: number; lift: number; nextAction: number; distance: number; pose: PetIdlePose; irritation: number; landing: number;
+  sleepBlendUntil: number; recoverUntil: number; pausedSince?: number; lift: number; nextAction: number; distance: number; pose: PetIdlePose; irritation: number; landing: number;
 }
 export interface SceneBounds { width: number; height: number }
 export type SceneInput = { phase: string; menuOpen?: boolean; deltaX: number; deltaY: number }
@@ -12,7 +12,7 @@ export const sceneDiameter = (width: number) => Math.max(1, Math.min(128, width)
 const clamp = (value: number, max: number) => Math.max(0, Math.min(Math.max(0, max), value))
 export function createSceneBody(entity: SceneEntity, width: number, now: number, index: number): SceneBody {
   return { id: entity.id, sizeScale: clampSceneScale(entity.sizeScale), storedX: entity.x, expectedPositions: [], x: clamp(entity.x, 1) * Math.max(0, width - sceneDiameter(width)), y: 0, velocity: 0,
-    menuOpen: false, dragging: false, pressed: false, lift: 0, recoverUntil: 0, startX: 0, startY: 0, mode: 'rest', started: now, lastInteraction: now,
+    menuOpen: false, dragging: false, pressed: false, lift: 0, sleepBlendUntil: 0, recoverUntil: 0, startX: 0, startY: 0, mode: 'rest', started: now, lastInteraction: now,
     nextAction: now + 6000 + index * 2300, distance: 0, pose: { ...REST_POSE }, irritation: 0, landing: -Infinity }
 }
 /** Commit the visible position before interruption, preserving the current visual pose. */
@@ -104,10 +104,28 @@ export function advanceScene(bodies: SceneBody[], bounds: SceneBounds, now: numb
       }
     }
     const controlled = body.dragging || body.pressed || body.y < 0 || body.irritation > .01
-    if (controlled || now < body.recoverUntil || !options.idleAnimations || options.reducedMotion) {
+    if (controlled || now < body.recoverUntil) {
       if (body.mode !== 'rest' && body.mode !== 'wake') interruptSceneBody(body, now)
       body.pose = blendIdlePose(body.pose, REST_POSE, options.reducedMotion ? 1 : 1 - Math.exp(-dt / 110))
       if (controlled) body.lastInteraction = now
+      continue
+    }
+    if (!options.idleAnimations || options.reducedMotion) {
+      // Resting is a care state, independent from optional decorative motion.
+      // Static settings must not prevent pets from recovering their energy.
+      if (body.mode === 'roll' || body.mode === 'hop') {
+        interruptSceneBody(body, now)
+        body.pose = options.reducedMotion ? { ...REST_POSE } : blendIdlePose(body.pose, REST_POSE, 1 - Math.exp(-dt / 110))
+        continue
+      }
+      const sleeping = now - body.lastInteraction >= 60000
+      if (sleeping && body.mode !== 'sleep') {
+        body.mode = 'sleep'
+        // Already settled closed; re-enabling motion must not replay eye closure.
+        body.started = now - 1200
+      } else if (!sleeping) body.mode = 'rest'
+      body.pose = { ...REST_POSE, eyes: sleeping ? .06 : 1 }
+      body.sleepBlendUntil = sleeping ? now + 600 : 0
       continue
     }
     if (now - body.started >= idleDuration(body.mode)) {
@@ -126,7 +144,9 @@ export function advanceScene(bodies: SceneBody[], bounds: SceneBounds, now: numb
         else body.nextAction = now + 5000
       }
     }
-    body.pose = idlePose(body.mode, now - body.started, body.distance)
+    const targetPose = idlePose(body.mode, now - body.started, body.distance)
+    body.pose = body.mode === 'sleep' && now < body.sleepBlendUntil
+      ? blendIdlePose(body.pose, targetPose, 1 - Math.exp(-dt / 110)) : targetPose
   }
 }
 
