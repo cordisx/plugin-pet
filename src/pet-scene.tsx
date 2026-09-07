@@ -3,7 +3,7 @@ import { Avatar } from '@oneworks/avatar-react'
 import { type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/avatar'
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import { createPetShapeTimeline } from './pet-scene-shape.js'
-import { advanceScene, createSceneBody, inputSceneBody, interruptSceneBody, sceneDiameter, type SceneBody } from './pet-scene-model.js'
+import { advanceScene, createSceneBody, inputSceneBody, interruptSceneBody, sceneDiameter, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
 
 export interface PetSceneEntity { id: string; name: string; x: number; definition: AvatarDefinition }
 export interface PetSceneProps {
@@ -12,6 +12,9 @@ export interface PetSceneProps {
   dragFor: (id: string) => CordisXReactVisualProps['drag']
   onPositionChange?: (id: string, x: number) => void
   onInteract?: (id: string, kind: 'activate' | 'drop') => void
+  followPointer?: boolean
+  clickFeedback?: boolean
+  draggable?: boolean
   idleAnimations?: boolean
   pausedIds?: readonly string[]
   feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' }
@@ -23,8 +26,8 @@ const PetAvatarGeometry = memo(function PetAvatarGeometry({ definition, theme, t
     timeline={timeline} timelineTimeMs={time}
     style={{ display: 'block', width: '100%', height: '100%', background: 'transparent' }} />
 })
-const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now }: {
-  entity: PetSceneEntity; body: SceneBody; state: CordisXReactVisualProps['state']; now: number
+const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now, followPointer }: {
+  entity: PetSceneEntity; body: SceneBody; state: CordisXReactVisualProps['state']; now: number; followPointer: boolean
 }) {
   const diameter = sceneDiameter(state.bounds.width)
   const rollTimeline = useMemo(() => createPetShapeTimeline(entity.definition), [entity.definition])
@@ -33,7 +36,7 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now }: {
   const timeline = lifted ? liftTimeline : rollTimeline
   const falling = body.y < 0 && !body.dragging
   const gaze = useRef({ yaw: 0, pitch: 0 })
-  const fixed = body.dragging || falling || body.mode !== 'rest'
+  const fixed = !followPointer || body.dragging || falling || body.mode !== 'rest'
   const pointer = state.pointer
   if (fixed) gaze.current = { yaw: 0, pitch: 0 }
   else if (pointer) {
@@ -93,12 +96,11 @@ export function PetScene(props: PetSceneProps) {
         if (snapshot.sequence === sequence) return
         sequence = snapshot.sequence
         const wasDragging = body.dragging
-        inputSceneBody(body, snapshot, latest.current.state.bounds, performance.now())
+        inputSceneBody(body, snapshot, latest.current.state.bounds, performance.now(), latest.current)
         if (snapshot.phase === 'activate') latest.current.onInteract?.(body.id, 'activate')
-        if (snapshot.phase === 'end' && wasDragging) latest.current.onInteract?.(body.id, 'drop')
+        if (snapshot.phase === 'end' && wasDragging && latest.current.draggable !== false) latest.current.onInteract?.(body.id, 'drop')
         if (snapshot.phase === 'end' || snapshot.phase === 'cancel') {
-          const range = latest.current.state.bounds.width - sceneDiameter(latest.current.state.bounds.width)
-          latest.current.onPositionChange?.(body.id, range > 0 ? body.x / range : 0)
+          latest.current.onPositionChange?.(body.id, reportScenePosition(body, latest.current.state.bounds.width))
         }
       })
       return () => { unsubscribe(); handle.setRegion(null); body.dragging = false; body.pressed = false }
@@ -123,6 +125,14 @@ export function PetScene(props: PetSceneProps) {
         for (const body of bodies.current) { interruptSceneBody(body, now); body.x = body.x / oldRange * range }
         previousWidth = width
       }
+      for (const body of bodies.current) {
+        const entity = current.entities.find(item => item.id === body.id)
+        if (entity) syncScenePosition(body, entity.x, width, now)
+        if (current.clickFeedback === false) body.irritation = 0
+        if (current.draggable === false && body.dragging) {
+          inputSceneBody(body, { phase: 'cancel', deltaX: 0, deltaY: 0 }, current.state.bounds, now)
+        }
+      }
       if (current.feedback && current.feedback.sequence !== lastFeedback.current) {
         lastFeedback.current = current.feedback.sequence
         const body = bodies.current.find(body => body.id === current.feedback!.id)
@@ -136,8 +146,7 @@ export function PetScene(props: PetSceneProps) {
       for (const body of bodies.current) {
         const before = previousModes.get(body.id)
         if ((before?.mode !== 'rest' && body.mode === 'rest') || (before && before.y < 0 && body.y === 0)) {
-          const range = width - sceneDiameter(width)
-          current.onPositionChange?.(body.id, range > 0 ? body.x / range : 0)
+          current.onPositionChange?.(body.id, reportScenePosition(body, width))
         }
         const entity = current.entities.find(item => item.id === body.id)
         // Implicit presets cannot be morphed through rc.8's public part API.
@@ -149,7 +158,7 @@ export function PetScene(props: PetSceneProps) {
         current.dragFor(body.id)?.setRegion({ x: body.x + body.pose.dx + diameter * .16,
           y: height + 56 - diameter + body.y + body.pose.y + diameter * .18,
           width: diameter * .68, height: diameter * .68,
-          label: `${entity?.name ?? 'Pet'}: drag to move; click to play` })
+          label: `${entity?.name ?? 'Pet'}: ${current.draggable === false ? 'click to play' : 'drag to move; click to play'}` })
       }
       setFrame({ now, bodies: bodies.current.map(body => ({ ...body, pose: { ...body.pose } })) })
     }
@@ -160,7 +169,7 @@ export function PetScene(props: PetSceneProps) {
     <style>{'.pet-scene .oneworks-avatar,.pet-scene .oneworks-avatar *{box-sizing:border-box}.pet-scene .oneworks-avatar>.interactive-avatar{width:100%;height:100%}'}</style>
     {props.entities.map(entity => {
       const body = frame.bodies.find(item => item.id === entity.id)
-      return body ? <SceneAvatar key={entity.id} entity={entity} body={body} state={props.state} now={frame.now} /> : null
+      return body ? <SceneAvatar key={entity.id} entity={entity} body={body} state={props.state} now={frame.now} followPointer={props.followPointer !== false} /> : null
     })}
   </span>
 }

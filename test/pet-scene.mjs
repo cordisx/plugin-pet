@@ -3,7 +3,7 @@ import test from 'node:test'
 import { idlePose } from '../src/pet-idle.ts'
 import { build } from 'esbuild'
 const bundle = await build({entryPoints:['src/pet-scene-model.ts'],bundle:true,write:false,format:'esm',platform:'node'})
-const {createSceneBody,inputSceneBody,advanceScene,sceneTravel} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+const {createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 const bounds = { width: 640, height: 350 }
 const opts = { reducedMotion: false, idleAnimations: true, random: () => .8 }
 const body = (id = 'cat', x = .3) => createSceneBody({id,x},640,0,0)
@@ -66,4 +66,26 @@ test('public Avatar timeline preserves head and skin through partial curl and re
     assert.ok(head.scaleX>0 && head.scaleY>0)
   }
   assert.equal(createPetShapeTimeline(composerAvatarDefinition('white',.5,.5,false)),undefined)
+})
+
+test('disabled dragging preserves position and disabled click feedback never accumulates irritation', () => {
+  const a = body()
+  const original = a.x
+  for (const phase of ['start','move','end']) inputSceneBody(a,{phase,deltaX:100,deltaY:-150},bounds,100,{draggable:false})
+  assert.equal(a.x,original); assert.equal(a.y,0); assert.equal(a.dragging,false)
+  for(let i=0;i<10;i++) inputSceneBody(a,{phase:'activate',deltaX:0,deltaY:0},bounds,200+i,{clickFeedback:false})
+  assert.equal(a.irritation,0)
+})
+test('affinity rerenders and asynchronous save acknowledgements retain idle drift; external position resets apply', () => {
+  const a=body()
+  a.x+=40
+  const written=reportScenePosition(a,640)
+  a.mode='roll'; a.pose=idlePose('roll',1000,80)
+  const visible=a.x+a.pose.dx
+  assert.equal(syncScenePosition(a,.3,640,1000),false)
+  assert.equal(syncScenePosition(a,written,640,1001),false)
+  assert.equal(a.x+a.pose.dx,visible)
+  assert.equal(a.mode,'roll')
+  assert.equal(syncScenePosition(a,.9,640,1002),true)
+  assert.equal(a.x,.9*(640-128)); assert.equal(a.pose.dx,0)
 })

@@ -2,7 +2,7 @@ import { idleDuration, idlePose, blendIdlePose, REST_POSE, type PetIdleKind, typ
 
 export interface SceneEntity { id: string; x: number }
 export interface SceneBody {
-  id: string; x: number; y: number; velocity: number; dragging: boolean; pressed: boolean;
+  id: string; storedX: number; expectedPositions: number[]; x: number; y: number; velocity: number; dragging: boolean; pressed: boolean;
   startX: number; startY: number; mode: PetIdleKind; started: number; lastInteraction: number;
   recoverUntil: number; pausedSince?: number; lift: number; nextAction: number; distance: number; pose: PetIdlePose; irritation: number; landing: number;
 }
@@ -11,7 +11,7 @@ export type SceneInput = { phase: string; deltaX: number; deltaY: number }
 export const sceneDiameter = (width: number) => Math.max(1, Math.min(128, width))
 const clamp = (value: number, max: number) => Math.max(0, Math.min(Math.max(0, max), value))
 export function createSceneBody(entity: SceneEntity, width: number, now: number, index: number): SceneBody {
-  return { id: entity.id, x: clamp(entity.x, 1) * Math.max(0, width - sceneDiameter(width)), y: 0, velocity: 0,
+  return { id: entity.id, storedX: entity.x, expectedPositions: [], x: clamp(entity.x, 1) * Math.max(0, width - sceneDiameter(width)), y: 0, velocity: 0,
     dragging: false, pressed: false, lift: 0, recoverUntil: 0, startX: 0, startY: 0, mode: 'rest', started: now, lastInteraction: now,
     nextAction: now + 6000 + index * 2300, distance: 0, pose: { ...REST_POSE }, irritation: 0, landing: -Infinity }
 }
@@ -23,7 +23,9 @@ export function interruptSceneBody(body: SceneBody, now: number) {
   body.mode = 'rest'; body.started = now; body.distance = 0; body.recoverUntil = now + 400
   body.lastInteraction = now; body.nextAction = now + 9000
 }
-export function inputSceneBody(body: SceneBody, input: SceneInput, bounds: SceneBounds, now: number) {
+export function inputSceneBody(body: SceneBody, input: SceneInput, bounds: SceneBounds, now: number, settings: { draggable?: boolean; clickFeedback?: boolean } = {}) {
+  if (settings.draggable === false && input.phase === 'move') return
+  if (settings.draggable === false && input.phase === 'end') input = { ...input, deltaX: 0, deltaY: 0 }
   if (input.phase === 'start') {
     const asleep = body.mode === 'sleep'
     interruptSceneBody(body, now)
@@ -43,7 +45,7 @@ export function inputSceneBody(body: SceneBody, input: SceneInput, bounds: Scene
     interruptSceneBody(body, now)
     body.pressed = false; body.dragging = false
     if (waking) { body.mode = 'wake'; body.started = now; body.recoverUntil = 0 }
-    else body.irritation = Math.min(1, body.irritation + .26)
+    else body.irritation = settings.clickFeedback === false ? 0 : Math.min(1, body.irritation + .26)
   } else if (input.phase === 'cancel') {
     body.pressed = false; body.dragging = false; body.velocity = 0
     body.lastInteraction = now; body.nextAction = now + 9000
@@ -119,4 +121,24 @@ export function advanceScene(bodies: SceneBody[], bounds: SceneBounds, now: numb
     }
     body.pose = idlePose(body.mode, now - body.started, body.distance)
   }
+}
+
+/** Acknowledge our own asynchronous writes without resetting transient idle motion. */
+export function reportScenePosition(body: SceneBody, width: number): number {
+  const range = width - sceneDiameter(width)
+  const x = range > 0 ? body.x / range : 0
+  body.expectedPositions.push(x)
+  if (body.expectedPositions.length > 16) body.expectedPositions.shift()
+  return x
+}
+export function syncScenePosition(body: SceneBody, externalX: number, width: number, now: number) {
+  if (Math.abs(body.storedX - externalX) < .000001) return false
+  body.storedX = externalX
+  const ack = body.expectedPositions.findIndex(x => Math.abs(x - externalX) < .000001)
+  if (ack >= 0) { body.expectedPositions.splice(0, ack + 1); return false }
+  body.expectedPositions = []
+  interruptSceneBody(body, now)
+  body.dragging = false; body.pressed = false
+  body.x = clamp(externalX, 1) * Math.max(0, width - sceneDiameter(width))
+  return true
 }
