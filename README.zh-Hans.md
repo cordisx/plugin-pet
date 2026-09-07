@@ -22,8 +22,7 @@ npm run check
 npm run dev
 ```
 
-当前 `cordisx` 依赖指向实验 Host 工作树，尚不是正式兼容版本。远端仓库准入和
-仓库使用 MIT 许可证；package 的 private 标记用于防止意外发布到 npm，预构建包通过上方 GitHub Release 提供。
+开发依赖使用相邻 Host 源码目录，正式兼容提交见上方说明。仓库已公开并完成 Mono 登记，使用 MIT 许可证。package 的 private 标记用于防止意外发布到 npm；预构建包通过 GitHub Release 提供。
 
 Avatar 组件使用精确版本 `@oneworks/avatar` / `@oneworks/avatar-react` 1.0.0-rc.8，
 组件模块仅导出组件。入口在点位已授权且可用后才通过
