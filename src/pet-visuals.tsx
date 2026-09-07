@@ -1,0 +1,81 @@
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'cordisx/react'
+import type { CordisXReactVisualProps } from 'cordisx/contracts'
+import type { PetClient } from './pet-client.js'
+import type { PetSection } from './pet-navigation.js'
+import { petAppearance } from './pet-appearance.js'
+import { PetScene } from './pet-scene.js'
+import { PET_CATALOG } from './pet-catalog.js'
+import { petWeightScale } from './pet-care.js'
+
+export function createPetOverlay(client: PetClient, navigate: (section: PetSection) => Promise<void>) {
+  return function PetOverlay(props: CordisXReactVisualProps) {
+    const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
+    const state = snapshot.state
+    const activeIds = state?.settings.visible ? state.activePetIds.join('|') : ''
+    const handles = useMemo(() => new Map<string, ReturnType<NonNullable<CordisXReactVisualProps['interactions']>['create']>>(), [props.interactions])
+    const [handleRevision, updateHandles] = useState(0)
+    useEffect(() => {
+      const wanted = new Set(activeIds ? activeIds.split('|') : [])
+      for (const [id, handle] of handles) if (!wanted.has(id)) { handle.dispose(); handles.delete(id) }
+      for (const id of wanted) if (!handles.has(id) && props.interactions) handles.set(id, props.interactions.create(id))
+      updateHandles(value => value + 1)
+    }, [handles, props.interactions, activeIds])
+    useEffect(() => () => { for (const handle of handles.values()) handle.dispose(); handles.clear() }, [handles])
+    const [pausedIds, setPausedIds] = useState<string[]>([])
+    const menuKey = JSON.stringify([state?.foodInventory, state?.mainPetId])
+    useEffect(() => {
+      const subscriptions = [...handles].map(([id, handle]) => {
+        let sequence = handle.getSnapshot().sequence
+        return handle.subscribe(() => {
+          const current = handle.getSnapshot()
+          setPausedIds(previous => current.menuOpen ? previous.includes(id) ? previous : [...previous, id] : previous.filter(item => item !== id))
+          if (current.sequence <= sequence) return
+          sequence = current.sequence
+          const action = current.actionId
+          if (!action) return
+          if (action.startsWith('feed:')) void client.execute({ type: 'feed', petId: id, foodId: action.slice(5) })
+          else if (action === 'main') void client.execute({ type: 'setMain', petId: id })
+          else if (action === 'reset') void client.execute({ type: 'move', petId: id, x: .7 })
+          else if (action === 'hide') {
+            const live = client.getSnapshot().state
+            if (live) void client.execute({ type: 'setActive', petIds: live.activePetIds.filter(item => item !== id) })
+          } else void navigate(action as PetSection).catch(error => {
+            console.warn('[pet] Page navigation failed', error)
+            client.reportError(String(error).includes('permission') ? '请在 CordisX 插件权限中允许宠物页面显示。' : '宠物页面暂时无法打开，请稍后重试。')
+          })
+        })
+      })
+      return () => {
+        for (const stop of subscriptions) stop()
+        setPausedIds([])
+      }
+    }, [handles, props.interactions, handleRevision])
+    useEffect(() => {
+      if (!state) return
+      for (const [id, handle] of handles) handle.setMenu([
+        ...PET_CATALOG.filter(item => item.kind === 'food').map(food => ({ id: `feed:${food.id}`, label: `喂${food.name} · ${state.foodInventory[food.id] ?? 0}`, disabled: !state.foodInventory[food.id] })),
+        { id: 'main', label: state.mainPetId === id ? '当前主宠' : '设为主宠', disabled: state.mainPetId === id },
+        { id: 'bag', label: '换装与背包' }, { id: 'pets', label: '我的宠物' }, { id: 'shop', label: '宠物商店' },
+        { id: 'reset', label: '重置位置' }, { id: 'hide', label: '暂时收起' }, { id: 'settings', label: '互动设置' },
+      ])
+    }, [handles, handleRevision, menuKey])
+    const entities = useMemo(() => !state || !state.settings.visible ? [] : state.activePetIds.flatMap(id => {
+      const pet = state.pets.find(item => item.id === id)
+      return pet?.status === 'alive' ? [{ id: pet.id, name: pet.name, x: pet.x, definition: petAppearance(pet), sizeScale: petWeightScale(pet) }] : []
+    }), [state])
+    const dragFor = useMemo(() => (id: string) => handles.get(id), [handles, handleRevision])
+    if (!state || !state.settings.visible) return null
+    return <><PetScene state={{ ...props.state, reducedMotion: props.state.reducedMotion || state.settings.reducedMotion }}
+      entities={entities} dragFor={dragFor} pausedIds={pausedIds} feedback={snapshot.feedback}
+      followPointer={state.settings.followPointer} draggable={state.settings.draggable} clickFeedback={state.settings.clickFeedback}
+      idleAnimations={state.settings.idleAnimations}
+      onRestingChange={client.setRestingPets}
+      onPositionChange={(petId, x) => { void client.execute({ type: 'move', petId, x }) }}
+      onInteract={petId => { void client.execute({ type: 'interact', petId }) }} />
+      {snapshot.error && <span role="alert" style={{ position: 'absolute', top: 4, left: 8, maxWidth: 'min(320px, calc(100% - 16px))',
+        fontSize: 12, lineHeight: 1.5, padding: '4px 8px', borderRadius: 6, background: 'Canvas', color: 'CanvasText', pointerEvents: 'none' }}>{snapshot.error}</span>}
+    </>
+  }
+}
+
+export { createPetPrimary } from './pet-primary.js'

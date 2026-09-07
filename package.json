@@ -9,6 +9,7 @@
     "dist",
     "README.md",
     "README.zh-Hans.md",
+    "docs/pet-system.md",
     "cordisx-package.json",
     "THIRD_PARTY_NOTICES.md"
   ],

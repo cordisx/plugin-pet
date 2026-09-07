@@ -13,7 +13,7 @@ test('portable package binds the actual runtime manifest and package version', a
   assert.equal(envelope.version, pkg.version)
   assert.equal(envelope.id, manifest.id)
   assert.equal(envelope.runtimeManifest.digest, digest(bytes))
-  assert.equal(manifest.schemaVersion, 10)
+  assert.equal(manifest.schemaVersion, 11)
   assert.equal(envelope.entry, './dist/runtime/module.js')
   assert.ok(pkg.files.includes('cordisx-package.json'))
 })

@@ -1,0 +1,203 @@
+import { careWarning, initialPetCare, petWeightLabel } from './pet-care.js'
+import { useMemo, useState, useSyncExternalStore } from 'cordisx/react'
+import { Avatar } from '@oneworks/avatar-react'
+import { Button, Card, EmptyState, Select, Stack, Text } from 'cordisx/ui'
+import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct } from './pet-catalog.js'
+import type { PetProduct } from './pet-catalog.js'
+import type { PetCommand, PetEntity, PetSettings, PetState } from './pet-domain.js'
+import type { PetClient } from './pet-client.js'
+import type { PetUsageStatus } from './pet-usage.js'
+import { petAppearance } from './pet-appearance.js'
+import { PetFoodArt } from './pet-food-art.js'
+
+export type PetPageSection = 'shop' | 'pets' | 'bag' | 'settings' | 'ledger'
+type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void; usage?: PetUsageStatus }
+const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), min(100%, 340px)))', gap: 16 }
+function Preview({ entity, skinId }: { entity: PetEntity; skinId?: string }) {
+  const definition = useMemo(() => petAppearance(entity, skinId), [entity.species, entity.skinId, skinId])
+  return <Avatar className="pet-page-preview" definition={definition} interactive={false} autoplay={false} aria-label={`${entity.name}外观预览`}
+    style={{ width: 112, height: 112, alignSelf: 'center', flexShrink: 0 }} />
+}
+function productEntity(product: PetProduct): PetEntity {
+  const species = product.species ?? 'cat'
+  return { id: `preview:${product.id}`, species, skinId: product.kind === 'skin' ? product.id : PET_DEFAULT_SKINS[species], name: product.name, affinity: 0, x: .5, status: 'alive', care: initialPetCare(species) }
+}
+function Wallet({ state, usage }: { state: PetState; usage?: PetUsageStatus }) {
+  return <Stack gap="small">
+    <Text><strong>{state.wallet.balance.toLocaleString()} 宠物币</strong></Text>
+    {usage?.status === 'ready' ? <>
+      <Text tone="muted">每新增 {PET_ECONOMY.tokensPerCoin.toLocaleString()} Token 获得 1 宠物币，不足部分会保留。</Text>
+      <Text tone="muted">仅统计启用后本机可确认的使用量，不包含全部历史或其他设备。最近同步：{new Date(usage.observedThrough).toLocaleTimeString()}。</Text>
+    </> : <Text tone="muted">{usage?.status === 'initializing' ? '正在同步使用奖励…'
+      : usage?.status === 'unavailable' && usage.reason === 'permission-denied' ? '允许读取本机 Token 使用量后，即可积累宠物币。可在 CordisX 插件权限中开启。'
+      : '使用奖励暂不可用，恢复后会继续同步。免费外观、欢迎点心和相伴解锁仍可体验。'}</Text>}
+  </Stack>
+}
+function Shop({ state, busy, run, usage }: Commands) {
+  const [filter, setFilter] = useState('all')
+  const products = PET_CATALOG.filter(item => filter === 'all' || item.kind === filter)
+  return <Stack gap="large">
+    <Wallet state={state} usage={usage} />
+    <Select aria-label="商品类型" value={filter} onChange={setFilter} options={[
+      { value: 'all', label: '全部商品' }, { value: 'pet', label: '宠物' }, { value: 'skin', label: '皮肤' }, { value: 'food', label: '食物' }, { value: 'item', label: '道具' },
+    ]} />
+    <div style={grid}>{products.map(item => {
+      const owned = item.kind === 'pet' ? state.pets.some(entity => entity.species === item.species)
+        : item.kind === 'skin' && state.ownedSkinIds.includes(item.id)
+      const applicable = item.kind !== 'skin' || state.pets.some(entity => entity.species === item.species && entity.affinity >= (item.requiredAffinity ?? 0))
+      const affinity = Math.max(0, ...state.pets.map(entity => entity.affinity))
+      const canClaim = item.kind === 'pet' && !!item.requiredAffinity && affinity >= item.requiredAffinity
+      const reason = owned ? '已拥有' : !applicable ? '尚未满足适用宠物或亲密度要求' : state.wallet.balance < item.price ? '宠物币不足' : ''
+      return <Card key={item.id}>
+        <Stack gap="medium" style={{ height: '100%' }}>
+          {(item.kind === 'pet' || item.kind === 'skin') ? <Preview entity={productEntity(item)} /> : <PetFoodArt id={item.id} />}
+          <Text><strong>{item.name}</strong></Text>
+          <Text tone="muted">{item.kind === 'item' ? '消耗品 · 让逝去的宠物重新醒来' : item.kind === 'food' ? `消耗品 · 饱食度 +${item.fullness} · 亲密度 +${item.affinity}` : `永久解锁${item.species ? ` · ${item.species === 'cat' ? '猫猫' : item.species === 'dog' ? '小狗' : '兔兔'}` : ''}`}</Text>
+          <Text>{item.price === 0 ? '免费' : `${item.price} 宠物币`}{item.requiredAffinity ? ` · ${item.kind === 'pet' ? '或' : '需要'}亲密度 ${item.requiredAffinity}` : ''}</Text>
+          {item.kind === 'skin' && !owned && <Text tone="muted">当前仅预览；解锁后才能装备。</Text>}
+          <Stack direction="row" gap="small" wrap style={{ marginTop: 'auto' }}>
+            <Button disabled={busy || !!reason} title={reason || undefined} onClick={() => run({ type: 'buy', productId: item.id })}>
+              {owned ? '已拥有' : item.price === 0 ? '领取' : '购买'}
+            </Button>
+            {item.kind === 'pet' && item.requiredAffinity && !owned && <Button disabled={busy || !canClaim}
+              title={canClaim ? undefined : `任一宠物亲密度达到 ${item.requiredAffinity} 即可免费领养`}
+              onClick={() => run({ type: 'claim', productId: item.id })}>相伴解锁 {Math.min(affinity, item.requiredAffinity)}/{item.requiredAffinity}</Button>}
+          </Stack>
+          {reason && !owned && <Text tone="muted">{reason}</Text>}
+        </Stack>
+      </Card>
+    })}</div>
+  </Stack>
+}
+function CareStats({ entity }: { entity: PetEntity }) {
+  return <Stack gap="small">
+    <Text>{entity.status === 'dead' ? '已逝去' : entity.status === 'buried' ? '已安葬' : careWarning(entity.care)}</Text>
+    {(['fullness', 'energy', 'health'] as const).map((key, index) => <label className="pet-care-stat" key={key}>
+      <span className="pet-care-stat-label"><span>{['饱食度', '精力', '健康'][index]}</span><span>{Math.round(entity.care[key])}/100</span></span>
+      <meter aria-label={['饱食度', '精力', '健康'][index]} min={0} max={100} value={entity.care[key]} />
+    </label>)}
+    <Text tone="muted">体重 {entity.care.weight.toFixed(2)} kg · {petWeightLabel(entity)}</Text>
+  </Stack>
+}
+function Afterlife({ entity, state, busy, run }: Commands & { entity: PetEntity }) {
+  return <Stack gap="small"><Text tone="muted">可以安葬并保留纪念，也可以使用重启核心复活。</Text><Stack direction="row" gap="small" wrap>
+    {entity.status === 'dead' && <Button disabled={busy} onClick={() => run({ type: 'bury', petId: entity.id })}>安葬</Button>}
+    <Button disabled={busy || !(state.itemInventory['item-reboot-core'] > 0)} onClick={() => run({ type: 'revive', petId: entity.id })}>重启核心复活（{state.itemInventory['item-reboot-core'] ?? 0}）</Button>
+  </Stack></Stack>
+}
+function PetCard({ entity, state, busy, run }: Commands & { entity: PetEntity }) {
+  const [name, setName] = useState(entity.name)
+  const active = state.activePetIds.includes(entity.id)
+  const alive = entity.status === 'alive'
+  return <Card><Stack gap="medium">
+    <Preview entity={entity} />
+    <Text><strong>{entity.name}</strong>{entity.id === state.mainPetId ? ' · 主宠' : ''}</Text>
+    <Text tone="muted">亲密度 {entity.affinity} · {petProduct(entity.skinId).name}</Text>
+    <CareStats entity={entity} />
+    <form onSubmit={event => { event.preventDefault(); run({ type: 'rename', petId: entity.id, name }) }}>
+      <Stack gap="small">
+        <label htmlFor={`name-${entity.id}`}>名字</label>
+        <Stack direction="row" gap="small" align="center">
+          <input className="pet-name-input" id={`name-${entity.id}`} value={name} maxLength={24} required disabled={busy} onChange={event => setName(event.currentTarget.value)} />
+          <Button type="submit" disabled={busy || !name.trim() || name.trim() === entity.name}>保存</Button>
+        </Stack>
+      </Stack>
+    </form>
+    <Stack direction="row" wrap gap="small">
+      <Button disabled={busy || !alive || (!active && state.activePetIds.length >= state.settings.maxActivePets)}
+        onClick={() => run({ type: 'setActive', petIds: active ? state.activePetIds.filter(id => id !== entity.id) : [...state.activePetIds, entity.id] })}>{active ? '收起' : '出场'}</Button>
+      <Button disabled={busy || !alive || entity.id === state.mainPetId} onClick={() => run({ type: 'setMain', petId: entity.id })}>设为主宠</Button>
+      <Button disabled={busy || !alive} onClick={() => run({ type: 'move', petId: entity.id, x: .5 })}>重置位置</Button>
+    </Stack>
+    {!alive && <Afterlife entity={entity} state={state} busy={busy} run={run} />}
+  </Stack></Card>
+}
+function Pets(props: Commands) {
+  return <Stack gap="large">
+    <Text tone="muted">已出场 {props.state.activePetIds.length}/{props.state.settings.maxActivePets}。主宠同时陪伴在发送按钮上；离线时暂停照顾计时，在线时记得补充食物与休息。</Text>
+    <div style={grid}>{props.state.pets.filter(entity => entity.status !== 'buried').map(entity => <PetCard key={entity.id} {...props} entity={entity} />)}</div>
+    {props.state.pets.some(entity => entity.status === 'buried') && <section aria-label="纪念园"><Stack gap="medium"><Text><strong>纪念园</strong></Text><Text tone="muted">名字、外观与相伴的记忆会一直保留。</Text><div style={grid}>{props.state.pets.filter(entity => entity.status === 'buried').map(entity => <PetCard key={entity.id} {...props} entity={entity} />)}</div></Stack></section>}
+  </Stack>
+}
+function Bag({ state, busy, run }: Commands) {
+  const [selectedId, setSelectedId] = useState(state.mainPetId)
+  const [previewSkin, setPreviewSkin] = useState<string | null>(null)
+  const entity = state.pets.find(item => item.id === selectedId) ?? state.pets[0]!
+  const skins = PET_CATALOG.filter(item => item.kind === 'skin' && item.species === entity.species)
+  const skin = previewSkin && skins.some(item => item.id === previewSkin) ? previewSkin : entity.skinId
+  const owned = state.ownedSkinIds.includes(skin)
+  return <Stack gap="large">
+    <Select aria-label="照顾哪只宠物" value={entity.id} options={state.pets.map(item => ({ value: item.id, label: item.name }))}
+      onChange={id => { setSelectedId(id); setPreviewSkin(null) }} />
+    <Card><Stack gap="medium">
+      <Preview entity={entity} skinId={skin} />
+      <CareStats entity={entity} />
+      <Select aria-label="试穿皮肤" value={skin} onChange={setPreviewSkin} options={skins.map(item => ({ value: item.id, label: `${item.name}${state.ownedSkinIds.includes(item.id) ? '' : ' · 未解锁'}` }))} />
+      <Text tone="muted">{owned ? '已拥有，可装备。' : '仅试穿，不会改变宠物当前装备。'}</Text>
+      <Button disabled={busy || entity.status !== 'alive' || !owned || skin === entity.skinId} onClick={() => run({ type: 'equip', petId: entity.id, skinId: skin })}>{skin === entity.skinId ? '已装备' : '装备皮肤'}</Button>
+    </Stack></Card>
+    <div style={grid}>{PET_CATALOG.filter(item => item.kind === 'food').map(item => <Card key={item.id}><Stack gap="medium">
+      <PetFoodArt id={item.id} />
+      <Text><strong>{item.name}</strong> · {state.foodInventory[item.id] ?? 0} 份</Text>
+      <Text tone="muted">消耗 1 份，饱食度 +{item.fullness}，精力 +{item.energy}，亲密度 +{item.affinity}。</Text>
+      <Button disabled={busy || entity.status !== 'alive' || !(state.foodInventory[item.id] > 0)} onClick={() => run({ type: 'feed', petId: entity.id, foodId: item.id })}>喂给{entity.name}</Button>
+    </Stack></Card>)}</div>
+    <Card><Stack gap="medium"><Text><strong>重启核心</strong> · {state.itemInventory['item-reboot-core'] ?? 0} 枚</Text><Text tone="muted">消耗 1 枚复活选中的宠物，保留名字、装备和亲密度。</Text><Button disabled={busy || entity.status === 'alive' || !(state.itemInventory['item-reboot-core'] > 0)} onClick={() => run({ type: 'revive', petId: entity.id })}>复活{entity.name}</Button></Stack></Card>
+  </Stack>
+}
+const toggles: readonly [keyof Omit<PetSettings, 'maxActivePets'>, string][] = [
+  ['visible', '显示宠物'], ['followPointer', '跟随鼠标'], ['clickFeedback', '点击回应'],
+  ['draggable', '允许拖拽'], ['idleAnimations', '自主待机动作'], ['reducedMotion', '减少动态效果'],
+]
+function Settings({ state, busy, run }: Commands) {
+  return <Stack gap="large">
+    {toggles.map(([key, label]) => <Stack key={key} direction="row" align="center" justify="space-between" gap="medium">
+      <Text>{label}</Text>
+      <Select aria-label={label} disabled={busy} value={String(state.settings[key])} options={[{ value: 'true', label: '开启' }, { value: 'false', label: '关闭' }]}
+        onChange={value => run({ type: 'settings', value: { [key]: value === 'true' } })} />
+    </Stack>)}
+    <Stack direction="row" align="center" justify="space-between" gap="medium">
+      <Text>最多同时出场</Text>
+      <Select aria-label="最多同时出场" disabled={busy} value={String(state.settings.maxActivePets)} options={Array.from({ length: 12 }, (_, index) => index + 1)
+        .filter(count => count >= state.activePetIds.length).map(count => ({ value: String(count), label: `${count} 只${count === 3 ? '（推荐）' : ''}` }))}
+        onChange={value => run({ type: 'settings', value: { maxActivePets: Number(value) } })} />
+    </Stack>
+    <Text tone="muted">减少动态效果会停用滚动、跳跃和大幅形变。离线时暂停饱食度、精力和健康变化；在线长期饥饿可能导致死亡。</Text>
+  </Stack>
+}
+function Ledger({ state, usage }: { state: PetState; usage?: PetUsageStatus }) {
+  const records = state.receipts.filter(item => ['buy', 'claim', 'feed', 'usage', 'usage-baseline', 'bury', 'revive'].includes(item.kind)).slice().reverse()
+  return <Stack gap="large">
+    <Wallet state={state} usage={usage} />
+    <Text tone="muted">累计获得 {state.wallet.earned} · 累计花费 {state.wallet.spent}</Text>
+    {!records.length ? <EmptyState title="还没有收支记录" description="购买、喂食和相伴解锁会记录在这里。" /> : records.map(item => <Stack key={item.key} direction="row" justify="space-between" gap="medium">
+      <Stack gap="small"><Text>{item.detail}</Text><Text tone="muted">{new Date(item.at).toLocaleString()}</Text></Stack>
+      <Text>{item.coins > 0 ? '+' : ''}{item.coins} 宠物币</Text>
+    </Stack>)}
+    {state.careHistory.filter(item => item.kind === 'death').slice().reverse().map(item => <Text key={item.key} tone="muted">{state.pets.find(entity => entity.id === item.petId)?.name} · 已逝去 · {new Date(item.at).toLocaleString()}</Text>)}
+  </Stack>
+}
+export function PetPage({ client, section }: { client: PetClient; section: PetPageSection }) {
+  const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
+  const [localError, setLocalError] = useState<string | null>(null)
+  const run = (command: PetCommand) => {
+    setLocalError(null)
+    void client.execute(command).catch(error => setLocalError(error instanceof Error ? error.message : '操作失败，请重试'))
+  }
+  if (!snapshot.state) return <EmptyState title={snapshot.error ? '暂时无法读取宠物' : '正在准备宠物…'} description={snapshot.error ?? undefined} />
+  const props = { state: snapshot.state, busy: snapshot.busy, usage: snapshot.usage, run }
+  return <Stack gap="large" aria-busy={snapshot.busy}>
+    <style>{`
+      .pet-page-preview>.interactive-avatar{width:100%;height:100%;box-sizing:border-box}
+      .pet-care-stat{display:grid;gap:6px}
+      .pet-care-stat-label{display:flex;justify-content:space-between;gap:12px;font-size:.9em}
+      .pet-care-stat meter{display:block;width:100%;height:8px}
+      .pet-name-input{min-width:0;width:100%;flex:1;box-sizing:border-box;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:8px;padding:8px 10px;background:transparent;color:inherit;font:inherit}
+      .pet-name-input:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+      .pet-name-input:disabled{opacity:.55}
+    `}</style>
+    {(localError || snapshot.error) && <Text role="alert" tone="danger">{localError || snapshot.error}</Text>}
+    {section === 'shop' ? <Shop {...props} /> : section === 'pets' ? <Pets {...props} /> : section === 'bag' ? <Bag {...props} />
+      : section === 'settings' ? <Settings {...props} /> : <Ledger state={snapshot.state} usage={snapshot.usage} />}
+  </Stack>
+}
