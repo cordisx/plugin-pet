@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { build } from 'esbuild'
-const bundle = await build({ stdin: { contents: `export * from './src/pet-domain.ts'; export * from './src/pet-store.ts'; export * from './src/pet-catalog.ts'`, resolveDir: process.cwd() }, bundle: true, format: 'esm', platform: 'node', write: false })
-const { createPetState, applyPetCommand, settlePetUsage, migratePetState, PetStore, PET_CATALOG } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
+const bundle = await build({ stdin: { contents: `export * from './src/pet-care.ts'; export * from './src/pet-domain.ts'; export * from './src/pet-store.ts'; export * from './src/pet-catalog.ts'`, resolveDir: process.cwd() }, bundle: true, format: 'esm', platform: 'node', write: false })
+const { advancePetCare, petWeightScale, initialPetCare, createPetState, applyPetCommand, settlePetUsage, migratePetState, PetStore, PET_CATALOG } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
 const tx = (key, now = 1000) => ({ key, now })
 function credit(state, tokens) {
   state = settlePetUsage(state, { sourceId: 'test-authoritative', totalTokens: 0 }, tx('baseline')).state
@@ -167,4 +167,87 @@ test('CAS exhaustion surfaces failure and an uncertain committed retry remains i
   const result = await uncertain.execute({ type: 'feed', petId: 'pet:cat', foodId: 'food-snack' }, 'same-retry')
   assert.equal(result.duplicate, true)
   assert.equal((await uncertain.read()).foodInventory['food-snack'], 2)
+})
+
+test('care grace, health loss, resting and gradual weight changes use elapsed online time', () => {
+  const initial = createPetState().pets[0]
+  const hungry = { ...initial, care: { ...initial.care, fullness: 19, energy: 40 } }
+  const grace = advancePetCare(hungry, 3_600_000)
+  assert.equal(grace.care.health, 100)
+  assert.equal(grace.care.energy, 32)
+  assert.ok(Math.abs(grace.care.weight - 3.96) < 1e-10)
+  const after = advancePetCare(grace, 3_600_000, { resting: true })
+  assert.equal(after.care.health, 96)
+  assert.equal(after.care.energy, 52)
+  const fed = advancePetCare({ ...initial, care: { ...initial.care, fullness: 100, health: 80 } }, 3_600_000)
+  assert.equal(fed.care.health, 82)
+  assert.ok(Math.abs(fed.care.weight - 4.02) < 1e-10)
+  assert.equal(advancePetCare(initial, 40 * 3_600_000).status, 'dead')
+  assert.equal(petWeightScale({ ...initial, care: { ...initial.care, weight: 2.6 } }), .85)
+  assert.equal(petWeightScale({ ...initial, care: { ...initial.care, weight: 6 } }), 1.18)
+  assert.equal(initialPetCare('dog').weight, 8)
+  assert.equal(initialPetCare('rabbit').weight, 2)
+})
+test('online pulses deduplicate overlapping windows and never catch up an offline gap', () => {
+  let state = applyPetCommand(createPetState(), { type: 'carePulse', elapsedMs: 0 }, tx('start', 1000)).state
+  state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 60000 }, tx('window-a', 61000)).state
+  const first = state.pets[0].care.fullness
+  state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 60000 }, tx('window-b', 61000)).state
+  assert.equal(state.pets[0].care.fullness, first)
+  state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 0 }, tx('restart-after-month', 32 * 86400000)).state
+  assert.equal(state.pets[0].care.fullness, first)
+  state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 86400000 }, tx('bounded', 33 * 86400000)).state
+  assert.ok(first - state.pets[0].care.fullness < .11)
+  assert.equal(state.receipts.length, 0)
+})
+test('death is recorded once, burial preserves identity and revival consumes one core atomically', () => {
+  let state = credit(createPetState(), 1_000_000)
+  state = applyPetCommand(state, { type: 'buy', productId: 'item-reboot-core' }, tx('core')).state
+  state.pets[0].care = { ...state.pets[0].care, fullness: 0, health: .01, lowFullnessMs: 3600000 }
+  state.careUpdatedAt = 0
+  state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 60000 }, tx('death', 60000)).state
+  assert.equal(state.pets[0].status, 'dead')
+  assert.deepEqual(state.activePetIds, [])
+  assert.equal(state.careHistory.filter(item => item.kind === 'death').length, 1)
+  state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 60000 }, tx('still-dead', 120000)).state
+  assert.equal(state.careHistory.length, 1)
+  for (const command of [
+    { type: 'feed', petId: 'pet:cat', foodId: 'food-snack' },
+    { type: 'interact', petId: 'pet:cat' },
+    { type: 'setActive', petIds: ['pet:cat'] },
+  ]) assert.throws(() => applyPetCommand(state, command, tx(`bad-${command.type}`)), /已逝去/)
+  state = applyPetCommand(state, { type: 'bury', petId: 'pet:cat' }, tx('bury')).state
+  assert.equal(state.pets[0].status, 'buried')
+  const before = state.pets[0]
+  state = applyPetCommand(state, { type: 'revive', petId: 'pet:cat' }, tx('revive')).state
+  assert.equal(state.pets[0].status, 'alive')
+  assert.equal(state.pets[0].id, before.id)
+  assert.equal(state.pets[0].name, before.name)
+  assert.equal(state.pets[0].skinId, before.skinId)
+  assert.equal(state.pets[0].affinity, before.affinity)
+  assert.equal(state.pets[0].care.health, 80)
+  assert.equal(state.itemInventory['item-reboot-core'], 0)
+  assert.equal(applyPetCommand(state, { type: 'revive', petId: 'pet:cat' }, tx('revive')).duplicate, true)
+  assert.deepEqual(migratePetState(state), state)
+})
+test('legacy pre-care saves acquire defaults without changing collection or wallet', () => {
+  const state = createPetState()
+  for (const key of ['careUpdatedAt', 'careHistory', 'itemInventory']) delete state[key]
+  for (const pet of state.pets) { delete pet.status; delete pet.care }
+  const migrated = migratePetState(state)
+  assert.equal(migrated.careUpdatedAt, null)
+  assert.equal(migrated.pets[0].care.weight, 4)
+  assert.equal(migrated.pets[0].status, 'alive')
+  assert.equal(migrated.wallet.balance, 0)
+  assert.throws(() => migratePetState({ ...migrated, itemInventory: null }), /道具/)
+})
+
+test('one long care simulation agrees with hourly steps and stops changing after death', () => {
+  const initial = createPetState().pets[0]
+  const once = advancePetCare(initial, 48 * 3_600_000)
+  let stepped = initial
+  for (let index = 0; index < 48; index++) stepped = advancePetCare(stepped, 3_600_000)
+  assert.equal(once.status, 'dead')
+  for (const key of ['fullness', 'energy', 'health', 'weight', 'lowFullnessMs']) assert.ok(Math.abs(once.care[key] - stepped.care[key]) < 1e-6, key)
+  assert.deepEqual(advancePetCare(once, 3_600_000), once)
 })

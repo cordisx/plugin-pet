@@ -1,3 +1,4 @@
+import { advancePetCare, initialPetCare, PET_CARE, PET_BASE_WEIGHT, type PetCare, type PetLifeStatus } from './pet-care.js'
 import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct } from './pet-catalog.js'
 import type { PetSpecies } from './pet-catalog.js'
 
@@ -8,6 +9,8 @@ export type PetEntity = {
   skinId: string
   affinity: number
   x: number
+  status: PetLifeStatus
+  care: PetCare
   interaction?: { day: string; count: number; lastAt: number }
 }
 export type PetSettings = {
@@ -28,6 +31,9 @@ export type PetState = {
   wallet: { balance: number; earned: number; spent: number }
   ownedSkinIds: string[]
   foodInventory: Record<string, number>
+  itemInventory: Record<string, number>
+  careUpdatedAt: number | null
+  careHistory: { key: string; petId: string; kind: 'death' | 'bury' | 'revive'; at: number }[]
   settings: PetSettings
   /** Economic effects retain permanent idempotency evidence. */
   receipts: PetReceipt[]
@@ -46,6 +52,9 @@ export type PetCommand =
   | { type: 'move'; petId: string; x: number }
   | { type: 'settings'; value: Partial<PetSettings> }
   | { type: 'interact'; petId: string }
+  | { type: 'carePulse'; elapsedMs: number; restingPetIds?: string[] }
+  | { type: 'bury'; petId: string }
+  | { type: 'revive'; petId: string }
 export type PetTransaction = { key: string; now: number }
 export type PetTransition = { state: PetState; duplicate: boolean; receipt: PetReceipt }
 export const DEFAULT_PET_SETTINGS: PetSettings = {
@@ -55,15 +64,15 @@ export const DEFAULT_PET_SETTINGS: PetSettings = {
 export function createPetState(): PetState {
   return {
     version: 1,
-    pets: [{ id: 'pet:cat', species: 'cat', name: '猫猫', skinId: 'skin-white', affinity: 0, x: .7 }],
+    pets: [{ id: 'pet:cat', species: 'cat', name: '猫猫', skinId: 'skin-white', affinity: 0, x: .7, status: 'alive', care: initialPetCare() }],
     mainPetId: 'pet:cat', activePetIds: ['pet:cat'],
     wallet: { balance: 0, earned: 0, spent: 0 }, ownedSkinIds: ['skin-white', 'skin-orange'],
-    foodInventory: { 'food-snack': 3 }, settings: { ...DEFAULT_PET_SETTINGS }, receipts: [], recentReceipts: [], usage: {},
+    foodInventory: { 'food-snack': 3 }, itemInventory: {}, careUpdatedAt: null, careHistory: [], settings: { ...DEFAULT_PET_SETTINGS }, receipts: [], recentReceipts: [], usage: {},
   }
 }
 export const PET_RECENT_RECEIPT_LIMIT = 128
-const economicKinds = new Set(['buy', 'claim', 'feed', 'usage', 'usage-baseline'])
-const recentKinds = new Set(['equip', 'rename', 'setActive', 'setMain', 'move', 'settings', 'interact'])
+const economicKinds = new Set(['buy', 'claim', 'feed', 'usage', 'usage-baseline', 'bury', 'revive'])
+const recentKinds = new Set(['equip', 'rename', 'setActive', 'setMain', 'move', 'settings', 'interact', 'carePulse'])
 function record(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value) }
 function usageSource(value: string): boolean { return /^[a-zA-Z0-9:_-]{1,120}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value) }
 function validReceipt(item: PetReceipt): boolean {
@@ -80,6 +89,11 @@ function pet(state: PetState, id: string): PetEntity {
   assert(result, '你还没有这只宠物')
   return result
 }
+function livePet(state: PetState, id: string): PetEntity {
+  const entity = pet(state, id)
+  assert(entity.status === 'alive', '这只宠物已逝去，请使用重启核心复活')
+  return entity
+}
 function validSettings(value: PetSettings): boolean {
   return ['visible', 'followPointer', 'clickFeedback', 'draggable', 'idleAnimations', 'reducedMotion']
     .every(key => typeof value[key as keyof PetSettings] === 'boolean')
@@ -95,11 +109,22 @@ export function migratePetState(raw: unknown): PetState {
   state.settings = { ...DEFAULT_PET_SETTINGS, ...state.settings }
   assert(validSettings(state.settings), '宠物设置无效')
   assert(Array.isArray(state.pets) && state.pets.length > 0, '宠物存档缺少宠物')
+  if (state.itemInventory === undefined) state.itemInventory = {}
+  if (state.careUpdatedAt === undefined) state.careUpdatedAt = null
+  if (state.careHistory === undefined) state.careHistory = []
   const ids = new Set<string>()
   for (const item of state.pets) {
     assert(record(item), '宠物状态无效')
     assert(typeof item.id === 'string' && item.id.length > 0 && !ids.has(item.id), '宠物身份重复或无效')
     ids.add(item.id)
+    if (item.status === undefined) item.status = 'alive'
+    if (item.care === undefined) item.care = initialPetCare(item.species)
+    if (record(item.care) && item.care.weight === undefined) item.care.weight = PET_BASE_WEIGHT[item.species]
+    assert(['alive', 'dead', 'buried'].includes(item.status) && record(item.care), '宠物生命状态无效')
+    assert(['fullness', 'energy', 'health'].every(key => { const value = item.care[key as keyof PetCare]; return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100 })
+      && Number.isFinite(item.care.weight) && item.care.weight >= PET_BASE_WEIGHT[item.species] * .65 && item.care.weight <= PET_BASE_WEIGHT[item.species] * 1.5
+      && Number.isFinite(item.care.lowFullnessMs) && item.care.lowFullnessMs >= 0, '宠物照顾状态无效')
+    assert(item.status === 'alive' ? item.care.health > 0 : item.care.health === 0, '宠物生命状态与健康不一致')
     assert(['cat', 'dog', 'rabbit'].includes(item.species), '未知宠物类型')
     assert(typeof item.name === 'string' && item.name.trim().length > 0 && item.name.length <= 24, '宠物名字无效')
     assert(integer(item.affinity) && Number.isFinite(item.x) && item.x >= 0 && item.x <= 1, '宠物状态无效')
@@ -110,12 +135,16 @@ export function migratePetState(raw: unknown): PetState {
   assert(new Set(state.pets.map(item => item.species)).size === state.pets.length, '宠物类型重复')
   assert(ids.has(state.mainPetId), '主宠不存在')
   assert(Array.isArray(state.activePetIds) && new Set(state.activePetIds).size === state.activePetIds.length
-    && state.activePetIds.every(id => ids.has(id)) && state.activePetIds.length <= state.settings.maxActivePets, '出场列表无效')
+    && state.activePetIds.every(id => state.pets.some(item => item.id === id && item.status === 'alive')) && state.activePetIds.length <= state.settings.maxActivePets, '出场列表无效')
   assert(record(state.wallet) && integer(state.wallet.balance) && integer(state.wallet.earned) && integer(state.wallet.spent)
     && state.wallet.earned - state.wallet.spent === state.wallet.balance, '宠物币账目无效')
   assert(Array.isArray(state.ownedSkinIds) && new Set(state.ownedSkinIds).size === state.ownedSkinIds.length && state.ownedSkinIds.every(id => petProduct(id).kind === 'skin'), '皮肤库存无效')
   assert(state.pets.every(item => state.ownedSkinIds.includes(item.skinId)), '已装备未拥有皮肤')
   assert(record(state.foodInventory) && Object.entries(state.foodInventory).every(([id, count]) => petProduct(id).kind === 'food' && integer(count)), '食物库存无效')
+  assert(record(state.itemInventory) && Object.entries(state.itemInventory).every(([id, count]) => petProduct(id).kind === 'item' && integer(count)), '道具库存无效')
+  assert(state.careUpdatedAt === null || (integer(state.careUpdatedAt) && state.careUpdatedAt <= 8.64e15), '照顾时间无效')
+  assert(Array.isArray(state.careHistory) && state.careHistory.every(item => record(item) && typeof item.key === 'string' && ids.has(item.petId)
+    && ['death', 'bury', 'revive'].includes(item.kind) && integer(item.at)), '照顾历史无效')
   assert(Array.isArray(state.receipts) && state.receipts.every(validReceipt), '交易记录无效')
   assert(state.recentReceipts === undefined || (Array.isArray(state.recentReceipts) && state.recentReceipts.every(validReceipt)), '近期操作记录无效')
   const allReceipts = [...state.receipts, ...(state.recentReceipts ?? [])]
@@ -153,13 +182,45 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
   let coins = 0
   let detail: string = command.type
   switch (command.type) {
+    case 'carePulse': {
+      assert(Number.isFinite(command.elapsedMs) && command.elapsedMs >= 0, '照顾时长无效')
+      const elapsed = state.careUpdatedAt === null ? 0 : Math.max(0, Math.min(command.elapsedMs, transaction.now - state.careUpdatedAt, PET_CARE.pulseLimitMs))
+      state.careUpdatedAt = Math.max(state.careUpdatedAt ?? 0, transaction.now)
+      state.pets = state.pets.map(entity => {
+        const next = advancePetCare(entity, elapsed, { resting: command.restingPetIds?.includes(entity.id) })
+        if (entity.status === 'alive' && next.status === 'dead') state.careHistory.push({ key: `${transaction.key}:${entity.id}`, petId: entity.id, kind: 'death', at: transaction.now })
+        return next
+      })
+      state.activePetIds = state.activePetIds.filter(id => pet(state, id).status === 'alive')
+      if (pet(state, state.mainPetId).status !== 'alive') state.mainPetId = state.pets.find(entity => entity.status === 'alive')?.id ?? state.mainPetId
+      break
+    }
+    case 'bury': {
+      const entity = pet(state, command.petId)
+      assert(entity.status === 'dead', '只有逝去的宠物可以安葬')
+      entity.status = 'buried'
+      state.careHistory.push({ key: transaction.key, petId: entity.id, kind: 'bury', at: transaction.now })
+      detail = `${entity.name} · 安葬`
+      break
+    }
+    case 'revive': {
+      const entity = pet(state, command.petId)
+      assert(entity.status !== 'alive', '这只宠物无需复活')
+      assert((state.itemInventory['item-reboot-core'] ?? 0) > 0, '需要一枚重启核心')
+      state.itemInventory['item-reboot-core']--
+      entity.status = 'alive'
+      entity.care = { fullness: PET_CARE.revivedFullness, energy: PET_CARE.revivedEnergy, health: PET_CARE.revivedHealth, lowFullnessMs: 0, weight: entity.care.weight }
+      state.careHistory.push({ key: transaction.key, petId: entity.id, kind: 'revive', at: transaction.now })
+      detail = `${entity.name} · 使用重启核心复活`
+      break
+    }
     case 'claim': {
       const item = petProduct(command.productId)
       assert(item.kind === 'pet' && item.species && item.requiredAffinity, '这件商品不支持相伴解锁')
       assert(!state.pets.some(entity => entity.species === item.species), '你已拥有这只宠物')
       assert(state.pets.some(entity => entity.affinity >= item.requiredAffinity!), `需要一只宠物达到 ${item.requiredAffinity} 亲密度`)
       const skinId = PET_DEFAULT_SKINS[item.species]
-      state.pets.push({ id: `pet:${item.species}`, species: item.species, name: item.name, skinId, affinity: 0, x: .3 })
+      state.pets.push({ id: `pet:${item.species}`, species: item.species, name: item.name, skinId, affinity: 0, x: .3, status: 'alive', care: initialPetCare(item.species) })
       if (!state.ownedSkinIds.includes(skinId)) state.ownedSkinIds.push(skinId)
       detail = `${item.name} · 相伴解锁`
       break
@@ -168,7 +229,7 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       const item = petProduct(command.productId)
       const quantity = command.quantity ?? 1
       assert(integer(quantity) && quantity > 0 && quantity <= 99, '购买数量应为 1 至 99')
-      assert(item.kind === 'food' || quantity === 1, '永久商品只能购买一次')
+      assert(item.kind === 'food' || item.kind === 'item' || quantity === 1, '永久商品只能购买一次')
       if (item.kind === 'pet') assert(!state.pets.some(entity => entity.species === item.species), '你已拥有这只宠物')
       if (item.kind === 'skin') {
         assert(!state.ownedSkinIds.includes(item.id), '你已拥有这款皮肤')
@@ -182,19 +243,20 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       if (item.kind === 'pet') {
         const species = item.species!
         const skinId = PET_DEFAULT_SKINS[species]
-        state.pets.push({ id: `pet:${species}`, species, name: item.name, skinId, affinity: 0, x: .3 })
+        state.pets.push({ id: `pet:${species}`, species, name: item.name, skinId, affinity: 0, x: .3, status: 'alive', care: initialPetCare(species) })
         if (!state.ownedSkinIds.includes(skinId)) state.ownedSkinIds.push(skinId)
       } else if (item.kind === 'skin') state.ownedSkinIds.push(item.id)
       else {
-        const count = (state.foodInventory[item.id] ?? 0) + quantity
+        const inventory = item.kind === 'item' ? state.itemInventory : state.foodInventory
+        const count = (inventory[item.id] ?? 0) + quantity
         assert(integer(count), '食物库存超出可安全保存范围')
-        state.foodInventory[item.id] = count
+        inventory[item.id] = count
       }
       detail = `${item.name} × ${quantity}`
       break
     }
     case 'equip': {
-      const entity = pet(state, command.petId)
+      const entity = livePet(state, command.petId)
       const skin = petProduct(command.skinId)
       assert(skin.kind === 'skin' && skin.species === entity.species, '这款皮肤不适用于该宠物')
       assert(state.ownedSkinIds.includes(skin.id), '请先解锁这款皮肤')
@@ -202,10 +264,13 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       break
     }
     case 'feed': {
-      const entity = pet(state, command.petId)
+      const entity = livePet(state, command.petId)
       const food = petProduct(command.foodId)
       assert(food.kind === 'food' && (state.foodInventory[food.id] ?? 0) > 0, '背包中没有这份食物')
       state.foodInventory[food.id]--
+      entity.care.fullness = Math.min(100, entity.care.fullness + (food.fullness ?? 0))
+      entity.care.energy = Math.min(100, entity.care.energy + (food.energy ?? 0))
+      if (entity.care.fullness >= PET_CARE.lowFullnessThreshold) entity.care.lowFullnessMs = 0
       entity.affinity += food.affinity ?? 0
       assert(integer(entity.affinity), '亲密度超出可安全保存范围')
       unlockAffinitySkins(state, entity)
@@ -220,13 +285,13 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
     }
     case 'setActive':
       assert(new Set(command.petIds).size === command.petIds.length && command.petIds.length <= state.settings.maxActivePets, '出场数量超过当前设置或有重复宠物')
-      command.petIds.forEach(id => pet(state, id))
+      command.petIds.forEach(id => livePet(state, id))
       state.activePetIds = [...command.petIds]
       break
-    case 'setMain': pet(state, command.petId); state.mainPetId = command.petId; break
+    case 'setMain': livePet(state, command.petId); state.mainPetId = command.petId; break
     case 'move':
       assert(Number.isFinite(command.x), '宠物位置无效')
-      pet(state, command.petId).x = Math.max(0, Math.min(1, command.x))
+      livePet(state, command.petId).x = Math.max(0, Math.min(1, command.x))
       break
     case 'settings': {
       const settings = { ...state.settings, ...command.value }
@@ -235,7 +300,7 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       break
     }
     case 'interact': {
-      const entity = pet(state, command.petId)
+      const entity = livePet(state, command.petId)
       const day = new Date(transaction.now).toISOString().slice(0, 10)
       const history = entity.interaction
       const count = history?.day === day ? history.count : 0

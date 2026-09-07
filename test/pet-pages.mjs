@@ -51,3 +51,15 @@ test('busy state disables every mutating button and settings selector', () => {
     if (section === 'settings') for (const tag of html.matchAll(/<select\b[^>]*>/g)) assert.match(tag[0], /disabled=""/)
   }
 })
+
+test('care pages show weight and distinguish death from a retained memorial', () => {
+  const state = createPetState()
+  state.pets[0].status = 'dead'; state.pets[0].care.health = 0; state.activePetIds = []
+  assert.match(render('pets', state), /已逝去/)
+  assert.match(render('pets', state), /体重 4.00 kg/)
+  assert.match(render('pets', state), /安葬/)
+  assert.match(render('bag', state), /重启核心/)
+  state.pets[0].status = 'buried'
+  assert.match(render('pets', state), /aria-label="纪念园"/)
+  assert.match(render('settings', state), /离线时暂停/)
+})

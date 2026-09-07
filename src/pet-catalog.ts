@@ -1,11 +1,13 @@
 export type PetSpecies = 'cat' | 'dog' | 'rabbit'
 export type PetProduct = {
   id: string
-  kind: 'pet' | 'skin' | 'food'
+  kind: 'pet' | 'skin' | 'food' | 'item'
   name: string
   price: number
   species?: PetSpecies
   paletteId?: string
+  fullness?: number
+  energy?: number
   affinity?: number
   requiredAffinity?: number
 }
@@ -23,9 +25,10 @@ export const PET_CATALOG: readonly PetProduct[] = [
   { id: 'skin-lop', kind: 'skin', name: '垂耳奶糖', species: 'rabbit', paletteId: 'holland-lop', price: 0 },
   { id: 'skin-dutch', kind: 'skin', name: '黑白布丁', species: 'rabbit', paletteId: 'dutch-rabbit', price: 80 },
   { id: 'skin-friend', kind: 'skin', name: '相伴纪念', species: 'cat', paletteId: 'british-shorthair', price: 0, requiredAffinity: 30 },
-  { id: 'food-snack', kind: 'food', name: '小点心', price: 5, affinity: 2 },
-  { id: 'food-meal', kind: 'food', name: '爱心餐', price: 12, affinity: 6 },
-  { id: 'food-feast', kind: 'food', name: '庆祝大餐', price: 25, affinity: 14 },
+  { id: 'food-snack', kind: 'food', name: '缓存小饼干', price: 5, affinity: 2, fullness: 20, energy: 5 },
+  { id: 'food-meal', kind: 'food', name: '算力便当', price: 12, affinity: 6, fullness: 45, energy: 15 },
+  { id: 'food-feast', kind: 'food', name: '超频大餐', price: 25, affinity: 14, fullness: 80, energy: 30 },
+  { id: 'item-reboot-core', kind: 'item', name: '重启核心', price: 80 },
 ]
 export const PET_DEFAULT_SKINS: Record<PetSpecies, string> = { cat: 'skin-white', dog: 'skin-shiba', rabbit: 'skin-lop' }
 export function petProduct(id: string): PetProduct {
