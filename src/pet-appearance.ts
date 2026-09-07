@@ -39,7 +39,7 @@ export function petAppearance(pet: PetEntity | PetSpecies, skinId?: string): Ava
       },
       camera: { ...base.scene.camera, background: 'transparent', frame: 'square', showFrameShadow: false },
       effects: { ...base.scene.effects, showAvatarShadow: false, showOutline: false, showFaceShadow: false },
-      lighting: { ...base.scene.lighting, enabled: true, distance: 0 },
+      lighting: { ...base.scene.lighting, enabled: false, distance: 0 },
       face: { ...base.scene.face, width: 24, height: 70, gap: 42, mouthEnabled: false, noseEnabled: false },
       entity: { preset: species, parts },
       view: { ...base.scene.view, scale: 1.18, yaw: 0, pitch: -.28 },

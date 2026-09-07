@@ -14,7 +14,7 @@
 
 从上方宠物的右键菜单，或设置导航中的「我的宠物」进入。外观只能装备已拥有的皮肤，未拥有的皮肤可以预览。食物是消耗品，永久商品不能重复购买。改装和选择宠物立即生效。
 
-当前源码正在接入可信的本机 Token 用量接口；接通前界面明确显示奖励未开放，不生成测试余额。宠物币不扣减模型额度。详细计时、恢复和开发边界见[宠物系统说明](docs/pet-system.md)。
+授权后，新增且经过确认的本机输入与输出 Token 用量可以积累宠物币。首次连接只建立起点，部分覆盖与暂不可用状态会明确显示，不生成测试余额。宠物币不扣减模型额度。详细计时、恢复和开发边界见[宠物系统说明](docs/pet-system.md)。
 
 ## 开发
 
@@ -24,7 +24,7 @@ npm run check
 npm run dev
 ```
 
-开发依赖使用相邻 `../cordisx/packages/cli` 源码目录。当前多实体交互开发输入为 Host PR [#375](https://github.com/cordisx/cordisx/pull/375)，实验提交 `368417dd224cf11f7da4ae186882d5ccdec6997b`；Protocol 已合入的契约提交为 `7ab6861b943989d71781ada94d28704fbbc9f793`。这组开发输入尚不代表正式发布兼容集。
+开发依赖使用相邻 `../cordisx/packages/cli` 源码目录。当前开发输入为 Host PR [#377](https://github.com/cordisx/cordisx/pull/377)，实验提交 `24324ecca95640017f31d5ae9176063dc8758253`，叠加在 [#375](https://github.com/cordisx/cordisx/pull/375) 之上；Protocol 已合入的契约提交为 `5d38948025c2ac48e0b184a9d63c5bf595c762d8`。这组开发输入尚不代表正式发布兼容集。
 
 插件只使用公开 CordisX 服务，Avatar 精确版本为 1.0.0-rc.8。插件代码用 Vite HMR 更新；Host、依赖或启动配置变化才需要更换开发运行实例。Launcher 验证的本地开发视觉权限自动授权；安装的插件仍需正常权限审核，不隐含麦克风权限。
 

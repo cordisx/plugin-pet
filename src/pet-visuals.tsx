@@ -39,7 +39,10 @@ export function createPetOverlay(client: PetClient, navigate: (section: PetSecti
           else if (action === 'hide') {
             const live = client.getSnapshot().state
             if (live) void client.execute({ type: 'setActive', petIds: live.activePetIds.filter(item => item !== id) })
-          } else void navigate(action as PetSection)
+          } else void navigate(action as PetSection).catch(error => {
+            console.warn('[pet] Page navigation failed', error)
+            client.reportError(String(error).includes('permission') ? '请在 CordisX 插件权限中允许宠物页面显示。' : '宠物页面暂时无法打开，请稍后重试。')
+          })
         })
       })
       return () => {
@@ -62,13 +65,16 @@ export function createPetOverlay(client: PetClient, navigate: (section: PetSecti
     }), [state])
     const dragFor = useMemo(() => (id: string) => handles.get(id), [handles, handleRevision])
     if (!state || !state.settings.visible) return null
-    return <PetScene state={{ ...props.state, reducedMotion: props.state.reducedMotion || state.settings.reducedMotion }}
+    return <><PetScene state={{ ...props.state, reducedMotion: props.state.reducedMotion || state.settings.reducedMotion }}
       entities={entities} dragFor={dragFor} pausedIds={pausedIds} feedback={snapshot.feedback}
       followPointer={state.settings.followPointer} draggable={state.settings.draggable} clickFeedback={state.settings.clickFeedback}
       idleAnimations={state.settings.idleAnimations}
       onRestingChange={client.setRestingPets}
       onPositionChange={(petId, x) => { void client.execute({ type: 'move', petId, x }) }}
       onInteract={petId => { void client.execute({ type: 'interact', petId }) }} />
+      {snapshot.error && <span role="alert" style={{ position: 'absolute', top: 4, left: 8, maxWidth: 'min(320px, calc(100% - 16px))',
+        fontSize: 12, lineHeight: 1.5, padding: '4px 8px', borderRadius: 6, background: 'Canvas', color: 'CanvasText', pointerEvents: 'none' }}>{snapshot.error}</span>}
+    </>
   }
 }
 

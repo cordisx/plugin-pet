@@ -2,15 +2,16 @@ import { careWarning, initialPetCare, petWeightLabel } from './pet-care.js'
 import { useMemo, useState, useSyncExternalStore } from 'cordisx/react'
 import { Avatar } from '@oneworks/avatar-react'
 import { Button, Card, EmptyState, Select, Stack, Text } from 'cordisx/ui'
-import { PET_CATALOG, PET_DEFAULT_SKINS, petProduct } from './pet-catalog.js'
+import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct } from './pet-catalog.js'
 import type { PetProduct } from './pet-catalog.js'
 import type { PetCommand, PetEntity, PetSettings, PetState } from './pet-domain.js'
 import type { PetClient } from './pet-client.js'
+import type { PetUsageStatus } from './pet-usage.js'
 import { petAppearance } from './pet-appearance.js'
 import { PetFoodArt } from './pet-food-art.js'
 
 export type PetPageSection = 'shop' | 'pets' | 'bag' | 'settings' | 'ledger'
-type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void }
+type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void; usage?: PetUsageStatus }
 const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), min(100%, 340px)))', gap: 16 }
 function Preview({ entity, skinId }: { entity: PetEntity; skinId?: string }) {
   const definition = useMemo(() => petAppearance(entity, skinId), [entity.species, entity.skinId, skinId])
@@ -21,17 +22,22 @@ function productEntity(product: PetProduct): PetEntity {
   const species = product.species ?? 'cat'
   return { id: `preview:${product.id}`, species, skinId: product.kind === 'skin' ? product.id : PET_DEFAULT_SKINS[species], name: product.name, affinity: 0, x: .5, status: 'alive', care: initialPetCare(species) }
 }
-function Wallet({ state }: { state: PetState }) {
+function Wallet({ state, usage }: { state: PetState; usage?: PetUsageStatus }) {
   return <Stack gap="small">
     <Text><strong>{state.wallet.balance.toLocaleString()} 宠物币</strong></Text>
-    <Text tone="muted">使用奖励暂未开放。免费外观、欢迎点心和相伴解锁现在就可以体验。</Text>
+    {usage?.status === 'ready' ? <>
+      <Text tone="muted">每新增 {PET_ECONOMY.tokensPerCoin.toLocaleString()} Token 获得 1 宠物币，不足部分会保留。</Text>
+      <Text tone="muted">仅统计启用后本机可确认的使用量，不包含全部历史或其他设备。最近同步：{new Date(usage.observedThrough).toLocaleTimeString()}。</Text>
+    </> : <Text tone="muted">{usage?.status === 'initializing' ? '正在同步使用奖励…'
+      : usage?.status === 'unavailable' && usage.reason === 'permission-denied' ? '允许读取本机 Token 使用量后，即可积累宠物币。可在 CordisX 插件权限中开启。'
+      : '使用奖励暂不可用，恢复后会继续同步。免费外观、欢迎点心和相伴解锁仍可体验。'}</Text>}
   </Stack>
 }
-function Shop({ state, busy, run }: Commands) {
+function Shop({ state, busy, run, usage }: Commands) {
   const [filter, setFilter] = useState('all')
   const products = PET_CATALOG.filter(item => filter === 'all' || item.kind === filter)
   return <Stack gap="large">
-    <Wallet state={state} />
+    <Wallet state={state} usage={usage} />
     <Select aria-label="商品类型" value={filter} onChange={setFilter} options={[
       { value: 'all', label: '全部商品' }, { value: 'pet', label: '宠物' }, { value: 'skin', label: '皮肤' }, { value: 'food', label: '食物' }, { value: 'item', label: '道具' },
     ]} />
@@ -159,10 +165,10 @@ function Settings({ state, busy, run }: Commands) {
     <Text tone="muted">减少动态效果会停用滚动、跳跃和大幅形变。离线时暂停饱食度、精力和健康变化；在线长期饥饿可能导致死亡。</Text>
   </Stack>
 }
-function Ledger({ state }: { state: PetState }) {
+function Ledger({ state, usage }: { state: PetState; usage?: PetUsageStatus }) {
   const records = state.receipts.filter(item => ['buy', 'claim', 'feed', 'usage', 'usage-baseline', 'bury', 'revive'].includes(item.kind)).slice().reverse()
   return <Stack gap="large">
-    <Wallet state={state} />
+    <Wallet state={state} usage={usage} />
     <Text tone="muted">累计获得 {state.wallet.earned} · 累计花费 {state.wallet.spent}</Text>
     {!records.length ? <EmptyState title="还没有收支记录" description="购买、喂食和相伴解锁会记录在这里。" /> : records.map(item => <Stack key={item.key} direction="row" justify="space-between" gap="medium">
       <Stack gap="small"><Text>{item.detail}</Text><Text tone="muted">{new Date(item.at).toLocaleString()}</Text></Stack>
@@ -179,7 +185,7 @@ export function PetPage({ client, section }: { client: PetClient; section: PetPa
     void client.execute(command).catch(error => setLocalError(error instanceof Error ? error.message : '操作失败，请重试'))
   }
   if (!snapshot.state) return <EmptyState title={snapshot.error ? '暂时无法读取宠物' : '正在准备宠物…'} description={snapshot.error ?? undefined} />
-  const props = { state: snapshot.state, busy: snapshot.busy, run }
+  const props = { state: snapshot.state, busy: snapshot.busy, usage: snapshot.usage, run }
   return <Stack gap="large" aria-busy={snapshot.busy}>
     <style>{`
       .pet-page-preview>.interactive-avatar{width:100%;height:100%;box-sizing:border-box}
@@ -192,6 +198,6 @@ export function PetPage({ client, section }: { client: PetClient; section: PetPa
     `}</style>
     {(localError || snapshot.error) && <Text role="alert" tone="danger">{localError || snapshot.error}</Text>}
     {section === 'shop' ? <Shop {...props} /> : section === 'pets' ? <Pets {...props} /> : section === 'bag' ? <Bag {...props} />
-      : section === 'settings' ? <Settings {...props} /> : <Ledger state={snapshot.state} />}
+      : section === 'settings' ? <Settings {...props} /> : <Ledger state={snapshot.state} usage={snapshot.usage} />}
   </Stack>
 }

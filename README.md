@@ -14,7 +14,7 @@ A small pet system living on Composer, rendered with real OneWorks Avatar cats, 
 
 Open My Pets from the upper companion's context menu or the settings navigation. Only owned skins can be equipped; unowned skins can be previewed. Food is consumed, and permanent goods cannot be bought twice. Changes apply immediately.
 
-Trusted local Token usage integration is in progress. Until connected, the interface explicitly marks rewards unavailable and never creates a test balance. Pet coins do not consume model quota. See the [pet system guide](docs/pet-system.md) for care timing, recovery and implementation boundaries.
+Authorized local Token usage earns pet coins from newly observed, validated input and output totals. The first connection establishes a baseline; partial local coverage and unavailable states are shown explicitly, without creating a test balance. Pet coins do not consume model quota. See the [pet system guide](docs/pet-system.md) for care timing, recovery and implementation boundaries.
 
 ## Development
 
@@ -24,7 +24,7 @@ npm run check
 npm run dev
 ```
 
-The `cordisx` development dependency uses a sibling `../cordisx/packages/cli` checkout. The current multi-entity development input is experimental Host [PR #375](https://github.com/cordisx/cordisx/pull/375), commit `368417dd224cf11f7da4ae186882d5ccdec6997b`, consuming formally merged Protocol `7ab6861b943989d71781ada94d28704fbbc9f793`. This is not yet a formal release compatibility set.
+The `cordisx` development dependency uses a sibling `../cordisx/packages/cli` checkout. The current development input is experimental Host [PR #377](https://github.com/cordisx/cordisx/pull/377), commit `24324ecca95640017f31d5ae9176063dc8758253`, stacked on [PR #375](https://github.com/cordisx/cordisx/pull/375) and consuming formally merged Protocol `5d38948025c2ac48e0b184a9d63c5bf595c762d8`. This is not yet a formal release compatibility set.
 
 Pet uses public CordisX services and exact Avatar 1.0.0-rc.8 packages. Plugin changes use Vite HMR; Host, dependency or launch-configuration changes require replacing the development runtime. Launcher-verified local visual permissions are automatically authorized; installed plugins retain normal review and do not gain microphone access.
 

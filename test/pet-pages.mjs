@@ -19,8 +19,8 @@ const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, f
 const { PetPage } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)
 const stateBundle = await build({ entryPoints: ['src/pet-domain.ts'], bundle: true, format: 'esm', platform: 'node', write: false })
 const { createPetState } = await import(`data:text/javascript;base64,${Buffer.from(stateBundle.outputFiles[0].text).toString('base64')}`)
-function render(section, state = createPetState(), busy = false) {
-  const snapshot = { state, error: null, busy }
+function render(section, state = createPetState(), busy = false, usage) {
+  const snapshot = { state, error: null, busy, usage }
   return renderToStaticMarkup(createElement(PetPage, { section, client: { getSnapshot: () => snapshot, subscribe: () => () => {}, execute: async () => {} } }))
 }
 test('shop renders real avatar definitions and unavailable income without offering a mint control', () => {
@@ -28,10 +28,18 @@ test('shop renders real avatar definitions and unavailable income without offeri
   assert.match(html, /data-avatar-preset="cat"/)
   assert.match(html, /data-avatar-preset="dog"/)
   assert.match(html, /data-avatar-preset="rabbit"/)
-  assert.match(html, /使用奖励暂未开放/)
+  assert.match(html, /使用奖励暂不可用/)
   assert.match(html, /相伴解锁 0\/6/)
   assert.match(html, /宠物币不足/)
   assert.doesNotMatch(html, /充值|领取宠物币|测试余额/)
+})
+test('wallet distinguishes permission denial from connected partial coverage', () => {
+  const denied = render('shop', createPetState(), false, { status: 'unavailable', reason: 'permission-denied' })
+  assert.match(denied, /允许读取本机 Token 使用量/)
+  const ready = render('ledger', createPetState(), false, { status: 'ready', coverage: 'partial', observedThrough: 1000, eligibleTokens: 100000 })
+  assert.match(ready, /不包含全部历史或其他设备/)
+  assert.match(ready, /最近同步/)
+  assert.doesNotMatch(ready, /奖励暂不可用/)
 })
 test('pet, bag and settings pages expose distinct care controls and accessible names', () => {
   assert.match(render('pets'), /设为主宠/)
