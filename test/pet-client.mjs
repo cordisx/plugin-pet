@@ -160,3 +160,25 @@ test('HMR replacement keeps one timer and a disposed pending startup cannot writ
   assert.equal(other.listenerCount(), 0)
   assert.equal(clock.pending(), 1)
 })
+
+test('client binds only the public usage service and exposes ready/denied state with durable wallet updates', async t => {
+  const clock = fakeClock(), bridge = documents()
+  const listeners = new Set()
+  let snapshot = { schemaVersion: 1, status: 'ready', scopeId: 'profile', sourceId: 'rollouts', epoch: 'one', revision: 0, eligibleTokens: 0, inputTokens: 0, outputTokens: 0, policyId: 'codex-local-input-output-v1', enabledAt: 0, observedThrough: 1000, coverage: 'partial', diagnostics: [] }
+  const usage = { read: async () => snapshot, subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener) } }
+  const client = new PetClient(bridge, clock.runtime, usage); t.after(() => client.dispose())
+  await client.start()
+  assert.equal(client.getSnapshot().usage.status, 'ready')
+  snapshot = { ...snapshot, revision: 1, eligibleTokens: 10000, inputTokens: 10000 }
+  await client.refreshUsage()
+  assert.equal(client.getSnapshot().state.wallet.balance, 1)
+  const writes = bridge.commits()
+  await client.refreshUsage()
+  assert.equal(bridge.commits(), writes)
+  snapshot = { schemaVersion: 1, status: 'unavailable', reason: 'permission-denied', diagnostics: [] }
+  await client.refreshUsage()
+  assert.equal(client.getSnapshot().usage.reason, 'permission-denied')
+  assert.equal(client.getSnapshot().state.wallet.balance, 1)
+  client.dispose()
+  assert.equal(listeners.size, 0)
+})

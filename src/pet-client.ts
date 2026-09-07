@@ -1,12 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { CordisXJsonValue } from 'cordisx/contracts'
+import type { CordisXJsonValue, UsageV1 } from 'cordisx/contracts'
 import { migratePetState, type PetCommand, type PetState } from './pet-domain.js'
 import { PetStore } from './pet-store.js'
+import { PetUsageController, type PetUsageStatus } from './pet-usage.js'
 
 export type PetClientSnapshot = {
   state: PetState | null
   error: string | null
   busy: boolean
+  usage?: PetUsageStatus
   feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' }
 }
 export type PetClientRuntime = {
@@ -16,13 +18,18 @@ export type PetClientRuntime = {
   clearTimeout: typeof clearTimeout
   randomId: () => string
 }
-const defaultRuntime: PetClientRuntime = { now: Date.now, monotonicNow: () => performance.now(), setTimeout, clearTimeout, randomId: () => crypto.randomUUID() }
+const defaultRuntime: PetClientRuntime = {
+  now: Date.now, monotonicNow: () => performance.now(),
+  setTimeout: globalThis.setTimeout.bind(globalThis), clearTimeout: globalThis.clearTimeout.bind(globalThis),
+  randomId: () => crypto.randomUUID(),
+}
 const DOCUMENT = 'pet-system'
 const CONTRACT = 'cordisx.owner-documents/v1' as const
 /** One plugin-generation client; Host owns persistence, scope and cross-window notifications. */
 export class PetClient {
   readonly #listeners = new Set<() => void>()
   readonly #store: PetStore
+  readonly #usage: PetUsageController | undefined
   #snapshot: PetClientSnapshot = { state: null, error: null, busy: false }
   #revision = -1
   #pending = 0
@@ -35,12 +42,13 @@ export class PetClient {
   #careReady = false
   #resting: string[] = []
   readonly #unsubscribe: () => void
-  constructor(private readonly documents: Context['documents'], private readonly runtime: PetClientRuntime = defaultRuntime) {
+  constructor(private readonly documents: Context['documents'], private readonly runtime: PetClientRuntime = defaultRuntime, usage?: UsageV1) {
     this.#store = new PetStore({
       load: async () => {
         if (this.#closed) throw new Error('宠物服务已关闭')
         const result = await documents.load(DOCUMENT)
         if (result.status === 'unavailable') throw new Error(result.diagnostic)
+        if (result.status === 'loaded') this.accept(result.snapshot.revision, result.snapshot.value)
         return result.status === 'missing'
           ? { revision: null, value: null }
           : { revision: String(result.snapshot.revision), value: result.snapshot.value }
@@ -56,7 +64,9 @@ export class PetClient {
         if (result.status === 'accepted') this.accept(result.snapshot.revision, result.snapshot.value)
         return result.status === 'accepted'
       },
-    }, { now: runtime.now })
+    }, { now: runtime.now, trustedUsageEnabled: usage !== undefined })
+    this.#usage = usage ? new PetUsageController(usage, async (input, key, isCurrent) => { await this.#store.settleUsage(input, key, isCurrent) }, status => this.update({ usage: status })) : undefined
+    this.#snapshot.usage = usage ? { status: 'initializing' } : { status: 'unavailable', reason: 'host-unavailable' }
     this.#unsubscribe = documents.subscribe(DOCUMENT, result => {
       if (result.status === 'loaded') this.accept(result.snapshot.revision, result.snapshot.value)
       else if (result.status === 'unavailable') this.update({ error: result.diagnostic })
@@ -85,7 +95,10 @@ export class PetClient {
     this.#started = true
     try { await this.initializeCare() }
     catch (error) { this.update({ error: error instanceof Error ? error.message : '宠物数据暂不可用' }) }
-    finally { this.scheduleCare() }
+    finally {
+      this.scheduleCare()
+      if (!this.#closed) await this.#usage?.start()
+    }
   }
   private async initializeCare(): Promise<void> {
     if (this.#closed) return
@@ -108,6 +121,8 @@ export class PetClient {
     }
   }
   setRestingPets = (ids: string[]): void => { this.#resting = [...ids] }
+  reportError = (message: string): void => { this.update({ error: message }) }
+  refreshUsage = (): Promise<void> => this.#usage?.refresh() ?? Promise.resolve()
   private scheduleCare(): void {
     if (this.#closed) return
     this.#careTimer = this.runtime.setTimeout(async () => {
@@ -149,6 +164,7 @@ export class PetClient {
     this.#closed = true
     if (this.#careTimer !== undefined) this.runtime.clearTimeout(this.#careTimer)
     this.#careTimer = undefined
+    this.#usage?.dispose()
     this.#unsubscribe()
     this.#listeners.clear()
   }

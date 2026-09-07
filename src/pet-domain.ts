@@ -39,7 +39,7 @@ export type PetState = {
   receipts: PetReceipt[]
   /** Bounded retry window for non-economic preferences and interaction. */
   recentReceipts: PetReceipt[]
-  usage: Record<string, { totalTokens: number; rewardedCoins: number; remainderTokens: number }>
+  usage: Record<string, { totalTokens: number; rewardedCoins: number; remainderTokens: number; lastRevision?: number }>
 }
 export type PetCommand =
   | { type: 'buy'; productId: string; quantity?: number }
@@ -157,8 +157,18 @@ export function migratePetState(raw: unknown): PetState {
   assert(earned === state.wallet.earned && spent === state.wallet.spent, '账目与交易记录不一致')
   assert(record(state.usage) && Object.entries(state.usage).every(([source, item]) => usageSource(source) && record(item)
     && integer(item.totalTokens) && integer(item.rewardedCoins) && integer(item.remainderTokens)
-    && item.remainderTokens < PET_ECONOMY.tokensPerCoin), '用量结算记录无效')
+    && item.remainderTokens < PET_ECONOMY.tokensPerCoin && (item.lastRevision === undefined || integer(item.lastRevision))), '用量结算记录无效')
+  assert(Object.values(state.usage).reduce((total, item) => total + item.rewardedCoins, 0) === state.wallet.earned, '收入与用量结算记录不一致')
+  collapseUsageReceipts(state)
   return state
+}
+function collapseUsageReceipts(state: PetState): void {
+  const income = state.receipts.filter(item => item.kind === 'usage' || item.kind === 'usage-baseline')
+  if (!income.length) return
+  if (income.length === 1 && income[0]!.key === 'usage-income:v1' && income[0]!.coins === state.wallet.earned) return
+  const latest = income.reduce((at, item) => Math.max(at, item.at), 0)
+  state.receipts = state.receipts.filter(item => item.kind !== 'usage' && item.kind !== 'usage-baseline')
+  state.receipts.push({ key: 'usage-income:v1', kind: state.wallet.earned > 0 ? 'usage' : 'usage-baseline', at: latest, coins: state.wallet.earned, detail: '正常使用累计奖励' })
 }
 function begin(state: PetState, transaction: PetTransaction): PetTransition | null {
   assert(typeof transaction.key === 'string' && transaction.key.length > 0 && transaction.key.length <= 200 && integer(transaction.now) && transaction.now <= 8.64e15, '交易标识无效')
@@ -317,24 +327,32 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
 }
 /** Only a trusted adapter may supply a monotonic aggregate of eligible tokens.
  * Its first snapshot establishes a baseline, so historical tokens are never reissued as new income. */
-export type TrustedPetUsage = { sourceId: string; totalTokens: number }
+export type TrustedPetUsage = { sourceId: string; totalTokens: number; revision?: number }
 export function settlePetUsage(input: PetState, usage: TrustedPetUsage, transaction: PetTransaction): PetTransition {
   const previous = begin(input, transaction)
   if (previous) return previous
-  assert(usageSource(usage.sourceId) && integer(usage.totalTokens), '可信用量数据无效')
+  assert(usageSource(usage.sourceId) && integer(usage.totalTokens) && (usage.revision === undefined || integer(usage.revision)), '可信用量数据无效')
   const state = structuredClone(input)
   const prior = state.usage[usage.sourceId]
   if (!prior) {
-    state.usage[usage.sourceId] = { totalTokens: usage.totalTokens, rewardedCoins: 0, remainderTokens: 0 }
-    return finish(state, transaction, 'usage-baseline', 0, '已建立用量起点')
+    state.usage[usage.sourceId] = { totalTokens: usage.totalTokens, rewardedCoins: 0, remainderTokens: 0, ...(usage.revision === undefined ? {} : { lastRevision: usage.revision }) }
+    const result = finish(state, transaction, 'usage-baseline', 0, '已建立用量起点')
+    collapseUsageReceipts(state)
+    return result
   }
   assert(usage.totalTokens >= prior.totalTokens, '用量回退，等待数据源恢复后再结算')
+  if (prior.lastRevision !== undefined && usage.revision !== undefined) {
+    assert(usage.revision >= prior.lastRevision && (usage.revision !== prior.lastRevision || usage.totalTokens === prior.totalTokens), '用量版本与累计数不一致')
+  }
+  if (usage.totalTokens === prior.totalTokens) return { state: input, duplicate: true, receipt: { key: transaction.key, at: transaction.now, kind: 'usage', coins: 0, detail: '用量未变化' } }
   const eligible = usage.totalTokens - prior.totalTokens + prior.remainderTokens
   assert(integer(eligible), '用量超出可安全结算范围')
   const reward = Math.floor(eligible / PET_ECONOMY.tokensPerCoin)
   assert(Number.isSafeInteger(state.wallet.earned + reward), '宠物币超出可安全结算范围')
   state.wallet.balance += reward
   state.wallet.earned += reward
-  state.usage[usage.sourceId] = { totalTokens: usage.totalTokens, rewardedCoins: prior.rewardedCoins + reward, remainderTokens: eligible % PET_ECONOMY.tokensPerCoin }
-  return finish(state, transaction, 'usage', reward, '正常使用奖励')
+  state.usage[usage.sourceId] = { totalTokens: usage.totalTokens, rewardedCoins: prior.rewardedCoins + reward, remainderTokens: eligible % PET_ECONOMY.tokensPerCoin, ...(usage.revision === undefined ? {} : { lastRevision: usage.revision }) }
+  const result = finish(state, transaction, 'usage', reward, '正常使用奖励')
+  collapseUsageReceipts(state)
+  return result
 }
