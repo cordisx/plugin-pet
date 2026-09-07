@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 
 // Reading the declarative entry must not load Avatar or activate the plugin.
-globalThis.__cordisxSharedReactRuntime = { React: {}, defineReactVisual: value => value }
+globalThis.__cordisxSharedReactRuntime = { React: {}, jsxRuntime: {}, ui: {}, defineReactVisual: value => value }
 const { manifest } = await import('../dist/runtime/module.js')
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 const runtime = `${JSON.stringify(manifest, null, 2)}\n`

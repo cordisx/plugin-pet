@@ -7,6 +7,7 @@ import type { PetProduct } from './pet-catalog.js'
 import type { PetCommand, PetEntity, PetSettings, PetState } from './pet-domain.js'
 import type { PetClient } from './pet-client.js'
 import { petAppearance } from './pet-appearance.js'
+import { PetFoodArt } from './pet-food-art.js'
 
 export type PetPageSection = 'shop' | 'pets' | 'bag' | 'settings' | 'ledger'
 type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void }
@@ -43,7 +44,7 @@ function Shop({ state, busy, run }: Commands) {
       const reason = owned ? '已拥有' : !applicable ? '尚未满足适用宠物或亲密度要求' : state.wallet.balance < item.price ? '宠物币不足' : ''
       return <Card key={item.id}>
         <Stack gap="medium" style={{ height: '100%' }}>
-          {(item.kind === 'pet' || item.kind === 'skin') ? <Preview entity={productEntity(item)} /> : <Text style={{ fontSize: 48, textAlign: 'center' }} aria-hidden="true">{item.kind === 'item' ? '💠' : item.id === 'food-snack' ? '🍪' : item.id === 'food-meal' ? '🍱' : '🎂'}</Text>}
+          {(item.kind === 'pet' || item.kind === 'skin') ? <Preview entity={productEntity(item)} /> : <PetFoodArt id={item.id} />}
           <Text><strong>{item.name}</strong></Text>
           <Text tone="muted">{item.kind === 'item' ? '消耗品 · 让逝去的宠物重新醒来' : item.kind === 'food' ? `消耗品 · 饱食度 +${item.fullness} · 亲密度 +${item.affinity}` : `永久解锁${item.species ? ` · ${item.species === 'cat' ? '猫猫' : item.species === 'dog' ? '小狗' : '兔兔'}` : ''}`}</Text>
           <Text>{item.price === 0 ? '免费' : `${item.price} 宠物币`}{item.requiredAffinity ? ` · ${item.kind === 'pet' ? '或' : '需要'}亲密度 ${item.requiredAffinity}` : ''}</Text>
@@ -125,6 +126,7 @@ function Bag({ state, busy, run }: Commands) {
       <Button disabled={busy || entity.status !== 'alive' || !owned || skin === entity.skinId} onClick={() => run({ type: 'equip', petId: entity.id, skinId: skin })}>{skin === entity.skinId ? '已装备' : '装备皮肤'}</Button>
     </Stack></Card>
     <div style={grid}>{PET_CATALOG.filter(item => item.kind === 'food').map(item => <Card key={item.id}><Stack gap="medium">
+      <PetFoodArt id={item.id} />
       <Text><strong>{item.name}</strong> · {state.foodInventory[item.id] ?? 0} 份</Text>
       <Text tone="muted">消耗 1 份，饱食度 +{item.fullness}，精力 +{item.energy}，亲密度 +{item.affinity}。</Text>
       <Button disabled={busy || entity.status !== 'alive' || !(state.foodInventory[item.id] > 0)} onClick={() => run({ type: 'feed', petId: entity.id, foodId: item.id })}>喂给{entity.name}</Button>
