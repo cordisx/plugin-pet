@@ -27,6 +27,17 @@ function documents() {
     listenerCount: () => listeners.size,
   }
 }
+test('unchanged document notifications preserve the visible snapshot', async t => {
+  const bridge = documents(), client = new PetClient(bridge, fakeClock().runtime)
+  t.after(() => client.dispose())
+  await client.start()
+  const before = client.getSnapshot()
+  let updates = 0
+  client.subscribe(() => updates++)
+  for (let index = 0; index < 20; index++) bridge.emit()
+  assert.equal(client.getSnapshot(), before)
+  assert.equal(updates, 0)
+})
 test('simultaneous initialization hydrates both windows without duplicating starter contents', async t => {
   const clock = fakeClock()
   const bridge = documents(), a = new PetClient(bridge, clock.runtime), b = new PetClient(bridge, clock.runtime)

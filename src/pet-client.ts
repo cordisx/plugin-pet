@@ -84,6 +84,10 @@ export class PetClient {
   }
   private accept(revision: number, value: unknown): void {
     if (revision < this.#revision || this.#closed) return
+    if (revision === this.#revision) {
+      if (this.#snapshot.error) this.update({ error: null })
+      return
+    }
     try {
       const state = migratePetState(value)
       this.#revision = revision

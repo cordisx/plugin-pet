@@ -36,6 +36,7 @@ test('public usage first read baselines, later fractional deltas award once, unc
   const writes = adapter.writes()
   for (let index = 0; index < 20; index++) await client.refresh()
   assert.equal(adapter.writes(), writes)
+  assert.equal(statuses.filter(value => value.status === 'initializing').length, 1)
   source.set(snapshot(10000, 1)); await client.refresh()
   assert.equal(adapter.state().wallet.balance, 0)
   source.set(snapshot(19999, 2)); await client.refresh()

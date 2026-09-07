@@ -37,6 +37,7 @@ export class PetUsageController {
   async start(): Promise<void> {
     if (this.#closed || this.#started) return
     this.#started = true
+    this.publish({ status: 'initializing' })
     try {
       this.#unsubscribe = this.usage.subscribe(() => { void this.refresh() })
       await this.refresh()
@@ -57,7 +58,6 @@ export class PetUsageController {
       this.#dirty = false
       const generation = this.#generation
       const current = () => !this.#closed && generation === this.#generation
-      this.publish({ status: 'initializing' })
       try {
         const snapshot = await this.usage.read()
         if (!current()) continue
