@@ -1,5 +1,12 @@
 # pet
 
+## 预构建安装包
+
+从 [pet v0.1.1](https://github.com/cordisx/plugin-pet/releases/tag/v0.1.1) 下载 `plugin-composer-animal-0.1.1.tgz`，按 `SHA256SUMS` 校验后解压。包内包含完整运行代码、正式安装清单 `cordisx-package.json` 和依赖许可，无需执行 `npm install` 或重新编译插件。
+
+Host 需使用已验证的源码提交 `d3e28dc37a357d94b0c177111fdaae4c189d14f0`；已发布的旧 beta 不含所需接口。在现有 CordisX 配置里，将 pet 的入口设为解压目录下的 `package/dist/runtime/module.js`，保留其他插件配置。安装目录已通过 Host 正式包解析和不可变存储验证。本次通过 GitHub Release 分发，不发布到 npm，也不增加商店一键安装能力；正常安装权限确认仍适用。
+
+
 实验中的 CordisX 官方插件候选，通过两个公开受控点位呈现真实 OneWorks Avatar。原生输入框
 保留按钮、实际操作、键盘和无障碍语义。
 
@@ -15,8 +22,7 @@ npm run check
 npm run dev
 ```
 
-当前 `cordisx` 依赖指向实验 Host 工作树，尚不是正式兼容版本。远端仓库准入和
-许可证待确认；包保持 private，尚未发布。
+开发依赖使用相邻 Host 源码目录，正式兼容提交见上方说明。仓库已公开并完成 Mono 登记，使用 MIT 许可证。package 的 private 标记用于防止意外发布到 npm；预构建包通过 GitHub Release 提供。
 
 Avatar 组件使用精确版本 `@oneworks/avatar` / `@oneworks/avatar-react` 1.0.0-rc.8，
 组件模块仅导出组件。入口在点位已授权且可用后才通过
