@@ -89,3 +89,38 @@ test('affinity rerenders and asynchronous save acknowledgements retain idle drif
   assert.equal(syncScenePosition(a,.9,640,1002),true)
   assert.equal(a.x,.9*(640-128)); assert.equal(a.pose.dx,0)
 })
+
+test('coalesced menu-open snapshot releases pending drag and freezes pose without parent state', () => {
+  const a=body()
+  inputSceneBody(a,{phase:'start',deltaX:0,deltaY:0},bounds,0)
+  inputSceneBody(a,{phase:'move',deltaX:30,deltaY:-80},bounds,100)
+  inputSceneBody(a,{phase:'idle',menuOpen:true,deltaX:0,deltaY:0},bounds,101)
+  assert.equal(a.dragging,false); assert.equal(a.pressed,false)
+  const y=a.y
+  advanceScene([a],bounds,132,32,opts)
+  advanceScene([a],bounds,3000,32,opts)
+  assert.equal(a.y,y)
+  inputSceneBody(a,{phase:'idle',menuOpen:false,deltaX:0,deltaY:0},bounds,3001)
+  advanceScene([a],bounds,3032,32,opts)
+  assert.ok(a.y>y)
+})
+test('all public pet appearances retain morphable head and skin across roll and lift', async () => {
+  const compiled = await build({entryPoints:['src/pet-appearance.ts','src/pet-scene-shape.ts'],bundle:true,write:false,format:'esm',platform:'node',outdir:'test-output'})
+  const modules = await Promise.all(compiled.outputFiles.map(file=>import('data:text/javascript;base64,'+Buffer.from(file.text).toString('base64'))))
+  const {petAppearance}=modules[0]
+  const {createPetShapeTimeline}=modules[1]
+  const {resolveAvatarAnimationTimelineFrame}=await import('@oneworks/avatar')
+  for(const species of ['cat','dog','rabbit']) {
+    const definition=petAppearance(species)
+    for(const lifted of [false,true]) {
+      const timeline=createPetShapeTimeline(definition,lifted)
+      assert.ok(timeline)
+      for(const sample of [0,250,500,1000]) {
+        const frame=resolveAvatarAnimationTimelineFrame(definition,timeline,sample)
+        assert.equal(frame.scene.entity.parts.filter(part=>part.face).length,1)
+        assert.equal(frame.scene.appearance.paletteId,definition.scene.appearance.paletteId)
+        for(const part of frame.scene.entity.parts) assert.ok(part.scaleX>0 && part.scaleY>0)
+      }
+    }
+  }
+})

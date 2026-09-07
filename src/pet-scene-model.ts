@@ -2,17 +2,17 @@ import { idleDuration, idlePose, blendIdlePose, REST_POSE, type PetIdleKind, typ
 
 export interface SceneEntity { id: string; x: number }
 export interface SceneBody {
-  id: string; storedX: number; expectedPositions: number[]; x: number; y: number; velocity: number; dragging: boolean; pressed: boolean;
+  id: string; storedX: number; expectedPositions: number[]; x: number; y: number; velocity: number; menuOpen: boolean; dragging: boolean; pressed: boolean;
   startX: number; startY: number; mode: PetIdleKind; started: number; lastInteraction: number;
   recoverUntil: number; pausedSince?: number; lift: number; nextAction: number; distance: number; pose: PetIdlePose; irritation: number; landing: number;
 }
 export interface SceneBounds { width: number; height: number }
-export type SceneInput = { phase: string; deltaX: number; deltaY: number }
+export type SceneInput = { phase: string; menuOpen?: boolean; deltaX: number; deltaY: number }
 export const sceneDiameter = (width: number) => Math.max(1, Math.min(128, width))
 const clamp = (value: number, max: number) => Math.max(0, Math.min(Math.max(0, max), value))
 export function createSceneBody(entity: SceneEntity, width: number, now: number, index: number): SceneBody {
   return { id: entity.id, storedX: entity.x, expectedPositions: [], x: clamp(entity.x, 1) * Math.max(0, width - sceneDiameter(width)), y: 0, velocity: 0,
-    dragging: false, pressed: false, lift: 0, recoverUntil: 0, startX: 0, startY: 0, mode: 'rest', started: now, lastInteraction: now,
+    menuOpen: false, dragging: false, pressed: false, lift: 0, recoverUntil: 0, startX: 0, startY: 0, mode: 'rest', started: now, lastInteraction: now,
     nextAction: now + 6000 + index * 2300, distance: 0, pose: { ...REST_POSE }, irritation: 0, landing: -Infinity }
 }
 /** Commit the visible position before interruption, preserving the current visual pose. */
@@ -24,6 +24,13 @@ export function interruptSceneBody(body: SceneBody, now: number) {
   body.lastInteraction = now; body.nextAction = now + 9000
 }
 export function inputSceneBody(body: SceneBody, input: SceneInput, bounds: SceneBounds, now: number, settings: { draggable?: boolean; clickFeedback?: boolean } = {}) {
+  if (input.menuOpen !== undefined) body.menuOpen = input.menuOpen
+  if (body.menuOpen) {
+    // A Host publish may coalesce cancellation and the following menu snapshot.
+    // Menu state itself must end capture presentation, even without cancel.
+    body.dragging = false; body.pressed = false; body.velocity = 0
+    return
+  }
   if (settings.draggable === false && input.phase === 'move') return
   if (settings.draggable === false && input.phase === 'end') input = { ...input, deltaX: 0, deltaY: 0 }
   if (input.phase === 'start') {
@@ -72,14 +79,14 @@ export function advanceScene(bodies: SceneBody[], bounds: SceneBounds, now: numb
   let moving = bodies.some(body => body.mode === 'roll' || body.mode === 'hop')
   for (const body of bodies) {
     body.x = clamp(body.x, bounds.width - sceneDiameter(bounds.width))
-    body.irritation *= Math.exp(-dt / 1000)
-    if (body.irritation < .001) body.irritation = 0
-    if (options.pausedIds?.includes(body.id)) { body.pausedSince ??= now; continue }
+    if (body.menuOpen || options.pausedIds?.includes(body.id)) { body.pausedSince ??= now; continue }
     if (body.pausedSince !== undefined) {
       const pausedFor = now - body.pausedSince
       body.started += pausedFor; body.lastInteraction += pausedFor; body.nextAction += pausedFor
       body.pausedSince = undefined
     }
+    body.irritation *= Math.exp(-dt / 1000)
+    if (body.irritation < .001) body.irritation = 0
     body.lift += ((body.dragging && !options.reducedMotion ? 1 : 0) - body.lift) * (1 - Math.exp(-dt / 85))
     body.y = Math.max(-Math.max(0, bounds.height + 56 - sceneDiameter(bounds.width)), body.y)
     if (!body.dragging && !body.pressed && body.y < 0) {

@@ -36,7 +36,7 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now, follow
   const timeline = lifted ? liftTimeline : rollTimeline
   const falling = body.y < 0 && !body.dragging
   const gaze = useRef({ yaw: 0, pitch: 0 })
-  const fixed = !followPointer || body.dragging || falling || body.mode !== 'rest'
+  const fixed = !followPointer || body.menuOpen || body.dragging || falling || body.mode !== 'rest'
   const pointer = state.pointer
   if (fixed) gaze.current = { yaw: 0, pitch: 0 }
   else if (pointer) {
@@ -60,9 +60,10 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now, follow
       leftEyeRotation: -16 * irritation, rightEyeRotation: 16 * irritation,
     },
   } }), [entity.definition, yaw, pitch, body.dragging, falling, eyes, irritation])
-  const landed = now - body.landing
+  const sampledNow = body.pausedSince ?? now
+  const landed = sampledNow - body.landing
   const bounce = !state.reducedMotion && landed >= 0 && landed < 340 ? Math.sin(landed / 340 * Math.PI * 2) * Math.exp(-landed / 140) : 0
-  const poke = state.reducedMotion ? 0 : Math.sin((now - body.lastInteraction) / 45) * Math.exp(-(now - body.lastInteraction) / 250) * body.irritation
+  const poke = state.reducedMotion ? 0 : Math.sin((sampledNow - body.lastInteraction) / 45) * Math.exp(-(sampledNow - body.lastInteraction) / 250) * body.irritation
   return <span className="pet-scene-entity" data-pet-id={entity.id} data-pet-behavior={body.dragging ? 'drag' : falling ? 'fall' : body.mode}
     aria-hidden="true" style={{ position: 'absolute', display: 'block', width: diameter, height: diameter,
       left: body.x + pose.dx, bottom: -56 - body.y - pose.y, pointerEvents: 'none', zIndex: body.dragging ? 2 : 1 }}>
@@ -82,15 +83,23 @@ export function PetScene(props: PetSceneProps) {
   const [frame, setFrame] = useState({ now: 0, bodies: [] as SceneBody[] })
   const entityKeys = props.entities.map(entity => entity.id).join('\0')
   const lastFeedback = useRef<number | undefined>(undefined)
+  const bindings = useRef(new Map<string, { handle: NonNullable<CordisXReactVisualProps['drag']>; release: () => void }>())
   useEffect(() => {
     const now = performance.now()
     bodies.current = props.entities.map((entity, index) => bodies.current.find(body => body.id === entity.id)
       ?? createSceneBody(entity, props.state.bounds.width, now, index))
-    const releases = props.entities.map((entity) => {
+    for (const [id, binding] of bindings.current) {
+      if (!props.entities.some(entity => entity.id === id) || props.dragFor(id) !== binding.handle) {
+        binding.release(); bindings.current.delete(id)
+      }
+    }
+    for (const entity of props.entities) {
       const handle = props.dragFor(entity.id)
       const body = bodies.current.find(item => item.id === entity.id)!
-      if (!handle) return () => {}
-      let sequence = handle.getSnapshot().sequence
+      if (!handle || bindings.current.has(entity.id)) continue
+      const initialSnapshot = handle.getSnapshot()
+      body.menuOpen = Boolean('menuOpen' in initialSnapshot && initialSnapshot.menuOpen)
+      let sequence = initialSnapshot.sequence
       const unsubscribe = handle.subscribe(() => {
         const snapshot = handle.getSnapshot()
         if (snapshot.sequence === sequence) return
@@ -103,12 +112,18 @@ export function PetScene(props: PetSceneProps) {
           latest.current.onPositionChange?.(body.id, reportScenePosition(body, latest.current.state.bounds.width))
         }
       })
-      return () => { unsubscribe(); handle.setRegion(null); body.dragging = false; body.pressed = false }
-    })
-    return () => releases.forEach(release => release())
-    // Stable IDs retain transient physics; the Host owns stable handle identity.
+      bindings.current.set(entity.id, { handle, release: () => {
+        unsubscribe(); handle.setRegion(null); body.dragging = false; body.pressed = false; body.menuOpen = false
+      } })
+    }
+    // Retained ID/handle pairs keep gesture state when another pet joins/leaves.
   }, [entityKeys, props.dragFor])
+  useEffect(() => () => {
+    for (const binding of bindings.current.values()) binding.release()
+    bindings.current.clear()
+  }, [])
   useEffect(() => {
+    if (!entityKeys) return
     let animationFrame: number
     let previous = performance.now()
     let previousWidth = latest.current.state.bounds.width
@@ -164,7 +179,7 @@ export function PetScene(props: PetSceneProps) {
     }
     animationFrame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(animationFrame)
-  }, [])
+  }, [Boolean(entityKeys)])
   return <span className="pet-scene" style={{ pointerEvents: 'none' }}>
     <style>{'.pet-scene .oneworks-avatar,.pet-scene .oneworks-avatar *{box-sizing:border-box}.pet-scene .oneworks-avatar>.interactive-avatar{width:100%;height:100%}'}</style>
     {props.entities.map(entity => {
