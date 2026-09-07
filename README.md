@@ -1,5 +1,12 @@
 # pet
 
+## Prebuilt download
+
+Download `plugin-composer-animal-0.1.1.tgz` from [pet v0.1.1](https://github.com/cordisx/plugin-pet/releases/tag/v0.1.1), verify it against `SHA256SUMS`, and extract it. The archive includes the complete prebuilt runtime, the formal `cordisx-package.json` installation manifest, and dependency license notices. No `npm install` or plugin compilation is needed.
+
+Use the compatible Host source revision below. In your existing CordisX composition, point the pet entry to the extracted `package/dist/runtime/module.js` and retain the other configured plugins. The package directory also passes the Host's formal local-package resolver and immutable-store staging checks. This release does not add a one-click marketplace installer or publish to the npm registry. Normal installed-plugin permission review still applies.
+
+
 Experimental CordisX plugin using two controlled visual seats. The native
 Composer retains its button, actions, keyboard handling and accessibility.
 
@@ -21,7 +28,7 @@ The `cordisx` dependency uses a sibling Host source checkout; see the exact
 development revisions below. This repository is public and MIT licensed. The
 package remains private to prevent accidental npm publication. The
 [community marketplace](https://github.com/cordisx/marketplace/blob/main/marketplace.json)
-provides discovery metadata; no packaged installer is available.
+provides discovery metadata; prebuilt archives are available through GitHub Releases.
 
 Only component exports live in the lazy Avatar module. The original SVG test
 orb remains in `src/animal-visual.tsx` as a reference. Definition changes must be
@@ -65,7 +72,7 @@ The upper head gently morphs toward a teardrop while lifted and returns from its
 
 ## Development dependency checkpoint
 
-The source integration uses formally merged CordisX Host `d3e28dc37a357d94b0c177111fdaae4c189d14f0` ([PR 349](https://github.com/cordisx/cordisx/pull/349)) and Protocol `06277f9d117893a9215c991db8c0881df0f0b0f3` ([PR 119](https://github.com/cordisx/cordisx-protocol/pull/119)). This records the tested source baseline required by the marketplace entry; the older published Host beta does not contain the required APIs. A packaged release is not yet available.
+The source integration uses formally merged CordisX Host `d3e28dc37a357d94b0c177111fdaae4c189d14f0` ([PR 349](https://github.com/cordisx/cordisx/pull/349)) and Protocol `06277f9d117893a9215c991db8c0881df0f0b0f3` ([PR 119](https://github.com/cordisx/cordisx-protocol/pull/119)). This records the tested source baseline required by the marketplace entry; the older published Host beta does not contain the required APIs. Use the prebuilt download above to avoid compiling the plugin.
 
 Place the Host checkout at `../cordisx`, select the exact revision recorded in this PR, install/build it using its own guide, then run `npm ci` and `npm run check` here. The relative dependency supports the canonical Mono sibling layout; no machine-specific path is required.
 

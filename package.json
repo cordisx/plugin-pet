@@ -1,6 +1,6 @@
 {
   "name": "plugin-composer-animal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "MIT",
   "description": "Interactive pet companion for Composer",
@@ -8,7 +8,9 @@
   "files": [
     "dist",
     "README.md",
-    "README.zh-Hans.md"
+    "README.zh-Hans.md",
+    "cordisx-package.json",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "main": "./dist/runtime/module.js",
   "types": "./dist/types/plugin-composer-animal.d.ts",
@@ -20,12 +22,13 @@
     }
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.json --emitDeclarationOnly",
-    "check": "tsc -p tsconfig.json --noEmit && vite build && tsc -p tsconfig.json --emitDeclarationOnly && node --test test/*.mjs",
+    "build": "vite build && tsc -p tsconfig.json --emitDeclarationOnly && node scripts/package-manifest.mjs",
+    "check": "tsc -p tsconfig.json --noEmit && npm run build && node --test test/*.mjs",
     "dev": "cordisx dev ./src/plugin-composer-animal.tsx",
     "dev:dry-run": "cordisx dev ./src/plugin-composer-animal.tsx --dry-run",
     "test": "node --test test/*.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
