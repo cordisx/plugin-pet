@@ -24,7 +24,7 @@ npm run check
 npm run dev
 ```
 
-开发依赖使用相邻 `../cordisx/packages/cli` 源码目录。当前开发输入为 Host PR [#377](https://github.com/cordisx/cordisx/pull/377)，实验提交 `24324ecca95640017f31d5ae9176063dc8758253`，叠加在 [#375](https://github.com/cordisx/cordisx/pull/375) 之上；Protocol 已合入的契约提交为 `5d38948025c2ac48e0b184a9d63c5bf595c762d8`。这组开发输入尚不代表正式发布兼容集。
+开发依赖使用相邻 `../cordisx/packages/cli` 源码目录。已验证的源码基线为正式合入的 Host `82865d8f6e8437cd3ca74cdd6fb82bfe8f38a741`（[#375](https://github.com/cordisx/cordisx/pull/375)、[#377](https://github.com/cordisx/cordisx/pull/377)），对应 Protocol `5d38948025c2ac48e0b184a9d63c5bf595c762d8`。宠物系统源码使用这组版本；下方已发布安装包仍是旧版本。
 
 插件只使用公开 CordisX 服务，Avatar 精确版本为 1.0.0-rc.8。插件代码用 Vite HMR 更新；Host、依赖或启动配置变化才需要更换开发运行实例。Launcher 验证的本地开发视觉权限自动授权；安装的插件仍需正常权限审核，不隐含麦克风权限。
 

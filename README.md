@@ -24,7 +24,7 @@ npm run check
 npm run dev
 ```
 
-The `cordisx` development dependency uses a sibling `../cordisx/packages/cli` checkout. The current development input is experimental Host [PR #377](https://github.com/cordisx/cordisx/pull/377), commit `24324ecca95640017f31d5ae9176063dc8758253`, stacked on [PR #375](https://github.com/cordisx/cordisx/pull/375) and consuming formally merged Protocol `5d38948025c2ac48e0b184a9d63c5bf595c762d8`. This is not yet a formal release compatibility set.
+The `cordisx` development dependency uses a sibling `../cordisx/packages/cli` checkout. The verified source baseline is formally merged Host `82865d8f6e8437cd3ca74cdd6fb82bfe8f38a741` ([PR #375](https://github.com/cordisx/cordisx/pull/375), [PR #377](https://github.com/cordisx/cordisx/pull/377)), consuming Protocol `5d38948025c2ac48e0b184a9d63c5bf595c762d8`. Use these revisions for the pet-system source; the released archive below remains the earlier version.
 
 Pet uses public CordisX services and exact Avatar 1.0.0-rc.8 packages. Plugin changes use Vite HMR; Host, dependency or launch-configuration changes require replacing the development runtime. Launcher-verified local visual permissions are automatically authorized; installed plugins retain normal review and do not gain microphone access.
 
