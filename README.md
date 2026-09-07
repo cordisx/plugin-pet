@@ -19,8 +19,9 @@ npm run dev
 
 The `cordisx` dependency uses a sibling Host source checkout; see the exact
 development revisions below. This repository is public and MIT licensed. The
-package remains private to prevent accidental npm publication and has no
-marketplace listing or packaged release.
+package remains private to prevent accidental npm publication. The
+[community marketplace](https://github.com/cordisx/marketplace/blob/main/marketplace.json)
+provides discovery metadata; no packaged installer is available.
 
 Only component exports live in the lazy Avatar module. The original SVG test
 orb remains in `src/animal-visual.tsx` as a reference. Definition changes must be
@@ -64,7 +65,7 @@ The upper head gently morphs toward a teardrop while lifted and returns from its
 
 ## Development dependency checkpoint
 
-The source integration uses formally merged CordisX Host `d3e28dc37a357d94b0c177111fdaae4c189d14f0` ([PR 349](https://github.com/cordisx/cordisx/pull/349)) and Protocol `06277f9d117893a9215c991db8c0881df0f0b0f3` ([PR 119](https://github.com/cordisx/cordisx-protocol/pull/119)). This records a tested source baseline, not a packaged release or marketplace listing.
+The source integration uses formally merged CordisX Host `d3e28dc37a357d94b0c177111fdaae4c189d14f0` ([PR 349](https://github.com/cordisx/cordisx/pull/349)) and Protocol `06277f9d117893a9215c991db8c0881df0f0b0f3` ([PR 119](https://github.com/cordisx/cordisx-protocol/pull/119)). This records the tested source baseline required by the marketplace entry; the older published Host beta does not contain the required APIs. A packaged release is not yet available.
 
 Place the Host checkout at `../cordisx`, select the exact revision recorded in this PR, install/build it using its own guide, then run `npm ci` and `npm run check` here. The relative dependency supports the canonical Mono sibling layout; no machine-specific path is required.
 
