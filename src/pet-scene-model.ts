@@ -192,3 +192,33 @@ export function sceneHitRegion(body: SceneBody, bounds: SceneBounds) {
 export function restingSceneIds(bodies: readonly SceneBody[]): string[] {
   return bodies.filter(body => body.mode === 'sleep' && !body.dragging && !body.pressed).map(body => body.id).sort()
 }
+
+/** New arrivals find a nearby free place; existing bodies are never relocated. */
+export function placeNewSceneBody(body: SceneBody, occupied: readonly SceneBody[], width: number): void {
+  const diameter = sceneDiameter(width)
+  const max = Math.max(0, width - diameter)
+  const xOf = (other: SceneBody) => other.x + other.pose.dx
+  const gap = (other: SceneBody) => sceneSeparation(body, other, diameter) + 6
+  const sorted = [...occupied].sort((a,b) => xOf(a)-xOf(b))
+  const candidates = [body.x, 0, max, ...occupied.flatMap(other => [xOf(other)-gap(other), xOf(other)+gap(other)]),
+    ...sorted.slice(1).map((other,index) => (xOf(sorted[index]) + xOf(other)) / 2)]
+    .filter(x => x >= 0 && x <= max)
+  const free = candidates.filter(x => occupied.every(other => Math.abs(x-xOf(other)) >= gap(other)-.001))
+  if (free.length) { body.x = free.sort((a,b) => Math.abs(a-body.x)-Math.abs(b-body.x))[0]; return }
+  // A narrow composer may have no free slot. Minimize overlap inside the seat
+  // rather than pushing existing pets or placing an inaccessible pet outside it.
+  const clearance = (x: number) => Math.min(...occupied.map(other => Math.abs(x-xOf(other))-gap(other)))
+  body.x = candidates.sort((a,b) => clearance(b)-clearance(a) || Math.abs(a-body.x)-Math.abs(b-body.x))[0] ?? 0
+}
+export function reconcileSceneBodies(previous: readonly SceneBody[], entities: readonly SceneEntity[], width: number, now: number): SceneBody[] {
+  const active = new Set(entities.map(entity => entity.id))
+  const occupied = previous.filter(body => active.has(body.id))
+  return entities.map((entity,index) => {
+    const retained = previous.find(body => body.id === entity.id)
+    if (retained) return retained
+    const body = createSceneBody(entity,width,now,index)
+    placeNewSceneBody(body,occupied,width)
+    occupied.push(body)
+    return body
+  })
+}

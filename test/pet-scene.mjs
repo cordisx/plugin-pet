@@ -3,7 +3,7 @@ import test from 'node:test'
 import { idlePose } from '../src/pet-idle.ts'
 import { build } from 'esbuild'
 const bundle = await build({entryPoints:['src/pet-scene-model.ts'],bundle:true,write:false,format:'esm',platform:'node'})
-const {createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition,advanceSceneScale,sceneHitRegion,restingSceneIds} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+const {createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition,advanceSceneScale,sceneHitRegion,restingSceneIds,reconcileSceneBodies} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 const bounds = { width: 640, height: 350 }
 const opts = { reducedMotion: false, idleAnimations: true, random: () => .8 }
 const body = (id = 'cat', x = .3) => createSceneBody({id,x},640,0,0)
@@ -183,4 +183,19 @@ test('re-enabling animations retains a settled sleeping face and resting positio
   assert.equal(a.mode,'sleep');assert.ok(Math.abs(a.pose.eyes-.06)<.00001)
   assert.ok(Math.abs(a.pose.scaleY-1)<.012)
   assert.equal(a.x,x);assert.equal(a.pose.dx,0);assert.equal(a.y,0)
+})
+
+test('new arrivals reserve free ground without changing any existing entity', () => {
+  const existing=body('cat',.6)
+  const original=structuredClone(existing)
+  const result=reconcileSceneBodies([existing],[{id:'dog',x:.62},{id:'cat',x:.6},{id:'rabbit',x:.6}],640,100)
+  assert.equal(result[1],existing)
+  assert.deepEqual(existing,original)
+  for(let i=0;i<result.length;i++) for(let j=i+1;j<result.length;j++) assert.ok(Math.abs(result[i].x-result[j].x)>=128*.7+6-.001)
+})
+test('crowded new arrivals stay in bounds and do not eject old pets', () => {
+  const old=createSceneBody({id:'a',x:0},150,0,0)
+  const result=reconcileSceneBodies([old],[{id:'a',x:0},{id:'b',x:0},{id:'c',x:1}],150,100)
+  assert.equal(old.x,0)
+  assert.ok(result.every(body=>body.x>=0 && body.x<=22))
 })

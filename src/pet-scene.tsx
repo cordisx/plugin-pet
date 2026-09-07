@@ -3,7 +3,7 @@ import { Avatar } from '@oneworks/avatar-react'
 import { type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/avatar'
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import { createPetShapeTimeline } from './pet-scene-shape.js'
-import { advanceScene, createSceneBody, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
+import { advanceScene, reconcileSceneBodies, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
 
 export interface PetSceneEntity { id: string; name: string; x: number; sizeScale?: number; definition: AvatarDefinition }
 export interface PetSceneProps {
@@ -95,8 +95,14 @@ export function PetScene(props: PetSceneProps) {
   const bindings = useRef(new Map<string, { handle: NonNullable<CordisXReactVisualProps['drag']>; release: () => void }>())
   useEffect(() => {
     const now = performance.now()
-    bodies.current = props.entities.map((entity, index) => bodies.current.find(body => body.id === entity.id)
-      ?? createSceneBody(entity, props.state.bounds.width, now, index))
+    const retainedIds = new Set(bodies.current.map(body => body.id))
+    bodies.current = reconcileSceneBodies(bodies.current, props.entities, props.state.bounds.width, now)
+    for (const body of bodies.current) {
+      if (!retainedIds.has(body.id)) {
+        const range = Math.max(0, props.state.bounds.width - sceneDiameter(props.state.bounds.width))
+        if (Math.abs(body.x - body.storedX * range) > .001) latest.current.onPositionChange?.(body.id, reportScenePosition(body, props.state.bounds.width))
+      }
+    }
     for (const [id, binding] of bindings.current) {
       if (!props.entities.some(entity => entity.id === id) || props.dragFor(id) !== binding.handle) {
         binding.release(); bindings.current.delete(id)
