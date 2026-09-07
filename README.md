@@ -17,10 +17,10 @@ npm run check
 npm run dev
 ```
 
-The `cordisx` dependency currently points to an experimental local Host checkout.
-This is integration material, not a released compatibility baseline. Remote
-repository admission and licensing remain pending; this package is private and
-unpublished.
+The `cordisx` dependency uses a sibling Host source checkout; see the exact
+development revisions below. This repository is public and MIT licensed. The
+package remains private to prevent accidental npm publication and has no
+marketplace listing or packaged release.
 
 Only component exports live in the lazy Avatar module. The original SVG test
 orb remains in `src/animal-visual.tsx` as a reference. Definition changes must be
@@ -34,7 +34,7 @@ Avatar editing remains future work. Artwork stays inert; the Host supplies an op
 Interaction permission lasts for one plugin generation and can be revoked
 independently of rendering.
 
-For optional visual design defaults, see the Host [Composer visual recommendations](https://github.com/cordisx/cordisx/blob/codex/composer-animal-visual/.agents/docs/composer-visuals.md#recommended-visual-defaults). These are guidance, not additional validation requirements.
+For optional visual design defaults, see the Host [Composer visual recommendations](https://github.com/cordisx/cordisx/blob/main/.agents/docs/composer-visuals.md#recommended-visual-defaults). These are guidance, not additional validation requirements.
 
 Launcher-verified local development previews automatically authorize declared
 visual rendering and pointer observation for this session. Installed plugins
@@ -64,8 +64,8 @@ The upper head gently morphs toward a teardrop while lifted and returns from its
 
 ## Development dependency checkpoint
 
-This is an experimental implementation, not a released plugin. It requires CordisX Host commit `bd3db12` from [Host PR 349](https://github.com/cordisx/cordisx/pull/349), including Protocol commit `a8cd6fafce2c627578c34b013c8f6a3a53aa049e`. The provider must merge before this implementation becomes a formal baseline.
+The source integration uses formally merged CordisX Host `d3e28dc37a357d94b0c177111fdaae4c189d14f0` ([PR 349](https://github.com/cordisx/cordisx/pull/349)) and Protocol `06277f9d117893a9215c991db8c0881df0f0b0f3` ([PR 119](https://github.com/cordisx/cordisx-protocol/pull/119)). This records a tested source baseline, not a packaged release or marketplace listing.
 
 Place the Host checkout at `../cordisx`, select the exact revision recorded in this PR, install/build it using its own guide, then run `npm ci` and `npm run check` here. The relative dependency supports the canonical Mono sibling layout; no machine-specific path is required.
 
-Shop and progression are deferred to the repository issue. Existing Avatar skin capabilities will be reused, not rebuilt.
+Shop and progression are deferred to [issue 1](https://github.com/cordisx/plugin-pet/issues/1). Existing Avatar skin capabilities will be reused, not rebuilt.
