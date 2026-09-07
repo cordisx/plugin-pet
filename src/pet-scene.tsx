@@ -3,13 +3,14 @@ import { Avatar } from '@oneworks/avatar-react'
 import { type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/avatar'
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import { createPetShapeTimeline } from './pet-scene-shape.js'
-import { advanceScene, createSceneBody, inputSceneBody, interruptSceneBody, sceneDiameter, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
+import { advanceScene, createSceneBody, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
 
-export interface PetSceneEntity { id: string; name: string; x: number; definition: AvatarDefinition }
+export interface PetSceneEntity { id: string; name: string; x: number; sizeScale?: number; definition: AvatarDefinition }
 export interface PetSceneProps {
   state: CordisXReactVisualProps['state']
   entities: readonly PetSceneEntity[]
   dragFor: (id: string) => CordisXReactVisualProps['drag']
+  onRestingChange?: (ids: string[]) => void
   onPositionChange?: (id: string, x: number) => void
   onInteract?: (id: string, kind: 'activate' | 'drop') => void
   followPointer?: boolean
@@ -67,10 +68,12 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now, follow
   return <span className="pet-scene-entity" data-pet-id={entity.id} data-pet-behavior={body.dragging ? 'drag' : falling ? 'fall' : body.mode}
     aria-hidden="true" style={{ position: 'absolute', display: 'block', width: diameter, height: diameter,
       left: body.x + pose.dx, bottom: -56 - body.y - pose.y, pointerEvents: 'none', zIndex: body.dragging ? 2 : 1 }}>
+    <span style={{ display: 'block', width: '100%', height: '100%', overflow: 'visible', transformOrigin: '50% 86%', transform: `scale(${body.sizeScale})` }}>
     <span style={{ display: 'block', width: '100%', height: '100%', transformOrigin: '50% 75%',
       transform: `rotate(${pose.angle}deg) scale(${pose.scaleX + bounce * .12 + poke * .06},${pose.scaleY - bounce * .16 - poke * .08})` }}>
       <PetAvatarGeometry definition={definition} theme={state.theme}
         timeline={timeline} time={Math.round((lifted ? body.lift : pose.ball) * 1000)} />
+    </span>
     </span>
   </span>
 })
@@ -82,6 +85,12 @@ export function PetScene(props: PetSceneProps) {
   const bodies = useRef<SceneBody[]>([])
   const [frame, setFrame] = useState({ now: 0, bodies: [] as SceneBody[] })
   const entityKeys = props.entities.map(entity => entity.id).join('\0')
+  const restingKey = useRef('')
+  const reportResting = () => {
+    const ids = restingSceneIds(bodies.current)
+    const key = ids.join('\0')
+    if (key !== restingKey.current) { restingKey.current = key; latest.current.onRestingChange?.(ids) }
+  }
   const lastFeedback = useRef<number | undefined>(undefined)
   const bindings = useRef(new Map<string, { handle: NonNullable<CordisXReactVisualProps['drag']>; release: () => void }>())
   useEffect(() => {
@@ -116,11 +125,13 @@ export function PetScene(props: PetSceneProps) {
         unsubscribe(); handle.setRegion(null); body.dragging = false; body.pressed = false; body.menuOpen = false
       } })
     }
+    reportResting()
     // Retained ID/handle pairs keep gesture state when another pet joins/leaves.
   }, [entityKeys, props.dragFor])
   useEffect(() => () => {
     for (const binding of bindings.current.values()) binding.release()
     bindings.current.clear()
+    if (restingKey.current) { restingKey.current = ''; latest.current.onRestingChange?.([]) }
   }, [])
   useEffect(() => {
     if (!entityKeys) return
@@ -142,7 +153,10 @@ export function PetScene(props: PetSceneProps) {
       }
       for (const body of bodies.current) {
         const entity = current.entities.find(item => item.id === body.id)
-        if (entity) syncScenePosition(body, entity.x, width, now)
+        if (entity) {
+          syncScenePosition(body, entity.x, width, now)
+          body.sizeScale = advanceSceneScale(body.sizeScale, entity.sizeScale, elapsed, current.state.reducedMotion)
+        }
         if (current.clickFeedback === false) body.irritation = 0
         if (current.draggable === false && body.dragging) {
           inputSceneBody(body, { phase: 'cancel', deltaX: 0, deltaY: 0 }, current.state.bounds, now)
@@ -169,12 +183,10 @@ export function PetScene(props: PetSceneProps) {
         if (body.mode === 'roll' && !entity?.definition.scene.entity.parts.some(part => part.face)) {
           body.mode = 'hop'; body.started = now
         }
-        const diameter = sceneDiameter(width)
-        current.dragFor(body.id)?.setRegion({ x: body.x + body.pose.dx + diameter * .16,
-          y: height + 56 - diameter + body.y + body.pose.y + diameter * .18,
-          width: diameter * .68, height: diameter * .68,
+        current.dragFor(body.id)?.setRegion({ ...sceneHitRegion(body, { width, height }),
           label: `${entity?.name ?? 'Pet'}: ${current.draggable === false ? 'click to play' : 'drag to move; click to play'}` })
       }
+      reportResting()
       setFrame({ now, bodies: bodies.current.map(body => ({ ...body, pose: { ...body.pose } })) })
     }
     animationFrame = requestAnimationFrame(tick)

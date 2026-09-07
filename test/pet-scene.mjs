@@ -3,7 +3,7 @@ import test from 'node:test'
 import { idlePose } from '../src/pet-idle.ts'
 import { build } from 'esbuild'
 const bundle = await build({entryPoints:['src/pet-scene-model.ts'],bundle:true,write:false,format:'esm',platform:'node'})
-const {createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+const {createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition,advanceSceneScale,sceneHitRegion,restingSceneIds} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 const bounds = { width: 640, height: 350 }
 const opts = { reducedMotion: false, idleAnimations: true, random: () => .8 }
 const body = (id = 'cat', x = .3) => createSceneBody({id,x},640,0,0)
@@ -123,4 +123,30 @@ test('all public pet appearances retain morphable head and skin across roll and 
       }
     }
   }
+})
+
+test('body size interpolates while saved position and head baseline stay fixed', () => {
+  const a=body()
+  const originalX=a.x
+  const baseline=sceneHitRegion(a,bounds).y+sceneHitRegion(a,bounds).height
+  const initial=advanceSceneScale(a.sizeScale,1.18,32,false)
+  assert.ok(initial>1 && initial<1.18)
+  for(let i=0;i<200;i++) a.sizeScale=advanceSceneScale(a.sizeScale,1.18,32,false)
+  assert.equal(a.sizeScale,1.18)
+  const large=sceneHitRegion(a,bounds)
+  assert.ok(Math.abs(large.y+large.height-baseline)<.000001)
+  assert.equal(a.x,originalX);assert.equal(a.y,0)
+  assert.ok(large.x>=0 && large.x+large.width<=bounds.width)
+  a.sizeScale=advanceSceneScale(a.sizeScale,.85,32,true)
+  const small=sceneHitRegion(a,bounds)
+  assert.equal(a.sizeScale,.85);assert.ok(small.width<large.width)
+  assert.ok(Math.abs(small.y+small.height-baseline)<.000001)
+})
+test('resting set uses stable identity order and excludes waking or manipulated pets', () => {
+  const a=body('a'),b=body('b'),c=body('c')
+  a.mode='sleep';b.mode='sleep';c.mode='wake'
+  assert.deepEqual(restingSceneIds([b,c,a]),['a','b'])
+  a.pressed=true
+  assert.deepEqual(restingSceneIds([b,c,a]),['b'])
+  assert.deepEqual(restingSceneIds([c]),[])
 })

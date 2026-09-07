@@ -1,8 +1,8 @@
 import { idleDuration, idlePose, blendIdlePose, REST_POSE, type PetIdleKind, type PetIdlePose } from './pet-idle.js'
 
-export interface SceneEntity { id: string; x: number }
+export interface SceneEntity { id: string; x: number; sizeScale?: number }
 export interface SceneBody {
-  id: string; storedX: number; expectedPositions: number[]; x: number; y: number; velocity: number; menuOpen: boolean; dragging: boolean; pressed: boolean;
+  id: string; sizeScale: number; storedX: number; expectedPositions: number[]; x: number; y: number; velocity: number; menuOpen: boolean; dragging: boolean; pressed: boolean;
   startX: number; startY: number; mode: PetIdleKind; started: number; lastInteraction: number;
   recoverUntil: number; pausedSince?: number; lift: number; nextAction: number; distance: number; pose: PetIdlePose; irritation: number; landing: number;
 }
@@ -11,7 +11,7 @@ export type SceneInput = { phase: string; menuOpen?: boolean; deltaX: number; de
 export const sceneDiameter = (width: number) => Math.max(1, Math.min(128, width))
 const clamp = (value: number, max: number) => Math.max(0, Math.min(Math.max(0, max), value))
 export function createSceneBody(entity: SceneEntity, width: number, now: number, index: number): SceneBody {
-  return { id: entity.id, storedX: entity.x, expectedPositions: [], x: clamp(entity.x, 1) * Math.max(0, width - sceneDiameter(width)), y: 0, velocity: 0,
+  return { id: entity.id, sizeScale: clampSceneScale(entity.sizeScale), storedX: entity.x, expectedPositions: [], x: clamp(entity.x, 1) * Math.max(0, width - sceneDiameter(width)), y: 0, velocity: 0,
     menuOpen: false, dragging: false, pressed: false, lift: 0, recoverUntil: 0, startX: 0, startY: 0, mode: 'rest', started: now, lastInteraction: now,
     nextAction: now + 6000 + index * 2300, distance: 0, pose: { ...REST_POSE }, irritation: 0, landing: -Infinity }
 }
@@ -65,8 +65,8 @@ export function sceneTravel(body: SceneBody, bodies: SceneBody[], width: number,
   for (const other of bodies) {
     if (other === body || other.y < -diameter * .7) continue
     const x = other.x + other.pose.dx
-    if (x < body.x) low = Math.max(low, x + diameter * .7)
-    else high = Math.min(high, x - diameter * .7)
+    if (x < body.x) low = Math.max(low, x + sceneSeparation(body, other, diameter))
+    else high = Math.min(high, x - sceneSeparation(body, other, diameter))
   }
   if (low > high || body.x < low || body.x > high) return 0
   return Math.max(low, Math.min(high, body.x + direction * distance)) - body.x
@@ -97,9 +97,9 @@ export function advanceScene(bodies: SceneBody[], bounds: SceneBounds, now: numb
         // Small displacement resolves a landing overlap when the seat has room.
         const occupied = bodies.filter(other => other !== body && other.y === 0)
         const max = Math.max(0, bounds.width - sceneDiameter(bounds.width))
-        const gap = sceneDiameter(bounds.width) * .7
-        const candidates = [body.x, 0, max, ...occupied.flatMap(other => [other.x - gap, other.x + gap])]
-          .filter(x => x >= 0 && x <= max && occupied.every(other => Math.abs(x - other.x) >= gap - .01))
+        const separation = (other: SceneBody) => sceneSeparation(body, other, sceneDiameter(bounds.width))
+        const candidates = [body.x, 0, max, ...occupied.flatMap(other => [other.x - separation(other), other.x + separation(other)])]
+          .filter(x => x >= 0 && x <= max && occupied.every(other => Math.abs(x - other.x) >= separation(other) - .01))
         if (candidates.length) body.x = candidates.sort((a, b) => Math.abs(a - body.x) - Math.abs(b - body.x))[0]
       }
     }
@@ -148,4 +148,27 @@ export function syncScenePosition(body: SceneBody, externalX: number, width: num
   body.dragging = false; body.pressed = false
   body.x = clamp(externalX, 1) * Math.max(0, width - sceneDiameter(width))
   return true
+}
+
+/** Scale the rendered canvas around its existing head baseline, not its position. */
+export function clampSceneScale(scale?: number): number {
+  return typeof scale === 'number' && Number.isFinite(scale) ? Math.max(.85, Math.min(1.18, scale)) : 1
+}
+export function advanceSceneScale(current: number, target: number | undefined, elapsedMs: number, reduced: boolean): number {
+  const goal = clampSceneScale(target)
+  if (reduced || Math.abs(goal - current) < .0001) return goal
+  return current + (goal - current) * (1 - Math.exp(-Math.max(0, Math.min(64, elapsedMs)) / 550))
+}
+function sceneSeparation(a: SceneBody, b: SceneBody, diameter: number): number {
+  return diameter * (.34 * (a.sizeScale + b.sizeScale) + .02)
+}
+export function sceneHitRegion(body: SceneBody, bounds: SceneBounds) {
+  const diameter = sceneDiameter(bounds.width)
+  const size = .68 * diameter * body.sizeScale
+  return { x: body.x + body.pose.dx + diameter * .5 - size / 2,
+    y: bounds.height + 56 - diameter + body.y + body.pose.y + diameter * .86 - size,
+    width: size, height: size }
+}
+export function restingSceneIds(bodies: readonly SceneBody[]): string[] {
+  return bodies.filter(body => body.mode === 'sleep' && !body.dragging && !body.pressed).map(body => body.id).sort()
 }
