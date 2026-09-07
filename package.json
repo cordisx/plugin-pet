@@ -1,0 +1,44 @@
+{
+  "name": "plugin-composer-animal",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Interactive pet companion for Composer",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-Hans.md"
+  ],
+  "main": "./dist/runtime/module.js",
+  "types": "./dist/types/plugin-composer-animal.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/plugin-composer-animal.d.ts",
+      "import": "./dist/runtime/module.js",
+      "default": "./dist/runtime/module.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.json --emitDeclarationOnly",
+    "check": "tsc -p tsconfig.json --noEmit && vite build && tsc -p tsconfig.json --emitDeclarationOnly && node --test test/*.mjs",
+    "dev": "cordisx dev ./src/plugin-composer-animal.tsx",
+    "dev:dry-run": "cordisx dev ./src/plugin-composer-animal.tsx --dry-run",
+    "test": "node --test test/*.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "cordisx": "file:../cordisx/packages/cli",
+    "esbuild": "0.28.2",
+    "typescript": "^5.9.2",
+    "vite": "8.2.2"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@oneworks/avatar": "1.0.0-rc.8",
+    "@oneworks/avatar-react": "1.0.0-rc.8"
+  }
+}
