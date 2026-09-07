@@ -3,7 +3,7 @@ import test from 'node:test'
 import { build } from 'esbuild'
 const bundle = await build({entryPoints:['src/pet-primary-pose.ts','src/pet-appearance.ts'],bundle:true,write:false,format:'esm',platform:'node',outdir:'test-output'})
 const modules = await Promise.all(bundle.outputFiles.map(file=>import('data:text/javascript;base64,'+Buffer.from(file.text).toString('base64'))))
-const {advancePrimaryGaze,primaryDefinition,primaryMode}=modules[0]
+const {advancePrimaryGaze,primaryDefinition,primaryMode,primaryWeightFactor,primaryWeightDefinition}=modules[0]
 const {petAppearance}=modules[1]
 test('dictation recording and transcription have distinct priority states', () => {
   assert.equal(primaryMode({schemaVersion:2,dictation:'recording'}),'recording')
@@ -32,6 +32,27 @@ test('state face preserves each species, skin, and head geometry while adjusting
       assert.equal(result.scene.view.scale,1.9)
       assert.equal(result.scene.view.positionY,30)
       if(mode==='thinking') assert.notEqual(result.scene.face.leftEyeHeight,result.scene.face.rightEyeHeight)
+    }
+  }
+})
+
+test('weight quantization preserves neutral geometry and moves all attachments together without changing skin', () => {
+  assert.equal(primaryWeightFactor(1),1)
+  assert.equal(primaryWeightFactor(1.001),1)
+  assert.equal(primaryWeightFactor(9),1.06)
+  assert.equal(primaryWeightFactor(.1),.94)
+  for(const species of ['cat','dog','rabbit']) {
+    const base=petAppearance(species)
+    assert.equal(primaryWeightDefinition(base,1),base)
+    const altered=primaryWeightDefinition(base,1.06)
+    assert.equal(altered.scene.appearance,base.scene.appearance)
+    assert.equal(altered.scene.view,base.scene.view)
+    const head=base.scene.entity.parts.find(part=>part.face)
+    for(let index=0;index<base.scene.entity.parts.length;index++) {
+      const original=base.scene.entity.parts[index], part=altered.scene.entity.parts[index]
+      assert.equal(part.x,head.x+(original.x-head.x)*1.06)
+      assert.equal(part.scaleX,original.scaleX*1.06)
+      for(const key of ['baseColor','foregroundColor','highlightColor','shadowColor','y','scaleY']) assert.equal(part[key],original[key])
     }
   }
 })

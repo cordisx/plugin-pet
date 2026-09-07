@@ -4,8 +4,9 @@ import { resolveAvatarAnimationFrame, type AvatarDefinition } from '@oneworks/av
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import type { PetClient } from './pet-client.js'
 import { petAppearance } from './pet-appearance.js'
+import { petWeightScale } from './pet-care.js'
 import { winkClip } from './avatar-wink.js'
-import { advancePrimaryGaze, primaryDefinition, primaryMode, type PrimaryGaze, type PrimaryMode } from './pet-primary-pose.js'
+import { advancePrimaryGaze, primaryDefinition, primaryMode, primaryWeightDefinition, primaryWeightFactor, type PrimaryGaze, type PrimaryMode } from './pet-primary-pose.js'
 
 const PrimaryGeometry = memo(function PrimaryGeometry({ definition, theme }: { definition: AvatarDefinition; theme: 'light' | 'dark' }) {
   return <Avatar definition={definition} theme={theme} interactive={false} autoplay={false}
@@ -55,8 +56,10 @@ export function createPetPrimary(client: PetClient) {
   return function PetPrimary({ state }: CordisXReactVisualProps) {
     const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
     const data = snapshot.state
-    const pet = data?.pets.find(item => item.id === data.mainPetId)
-    const base = useMemo(() => pet ? petAppearance(pet) : null, [pet?.species, pet?.skinId])
+    const pet = data?.pets.find(item => item.id === data.mainPetId && item.status === 'alive')
+    const weightFactor = primaryWeightFactor(pet ? petWeightScale(pet) : 1)
+    const base = useMemo(() => pet ? primaryWeightDefinition(petAppearance(pet), weightFactor) : null,
+      [pet?.species, pet?.skinId, weightFactor])
     const visible = Boolean(data?.settings.visible && base)
     const reduced = state.reducedMotion || Boolean(data?.settings.reducedMotion)
     const mode = primaryMode(state)

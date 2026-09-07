@@ -25,3 +25,18 @@ export function primaryDefinition(base: AvatarDefinition, gaze: PrimaryGaze, mod
       yaw: Math.round((gaze.x - .5) * 60) / 100, pitch: Math.round((gaze.y - .5) * 30) / 100 },
   } }
 }
+
+/** Half-percent steps prevent tiny care pulses from invalidating geometry. */
+export function primaryWeightFactor(sizeScale: number): number {
+  const factor = 1 + (Number.isFinite(sizeScale) ? sizeScale - 1 : 0) * .4
+  return Math.max(.94, Math.min(1.06, Math.round(factor * 200) / 200))
+}
+export function primaryWeightDefinition(base: AvatarDefinition, factor: number): AvatarDefinition {
+  if (factor === 1) return base
+  const head = base.scene.entity.parts.find(part => part.face)
+  if (!head) return base
+  const parts = base.scene.entity.parts.map(part => ({ ...part,
+    x: head.x + (part.x - head.x) * factor, scaleX: part.scaleX * factor,
+  }))
+  return { ...base, scene: { ...base.scene, entity: { ...base.scene.entity, parts } } }
+}
