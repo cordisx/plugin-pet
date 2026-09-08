@@ -5,10 +5,10 @@
     {
       "package": "cordisx",
       "repository": "https://github.com/cordisx/cordisx",
-      "sourceCommit": "b75fa2c6f9563924feca271242e2709c136033a3",
-      "artifact": "dependencies/cordisx-b75fa2c.tgz",
-      "sha256": "89647b8747c08de14e554870cef1da8e3ef196dc79544afd791bc0e2e23cf4ae",
-      "sourceStatus": "canonical baseline, HTTP runtime unavailable"
+      "sourceCommit": "4fb60431564931441927c474dd35188f6596274b",
+      "artifact": "dependencies/cordisx-4fb6043.tgz",
+      "sha256": "3cdbeb591c7087b6262a13a84ffd994f6435dc164b74342d1cebf5a4a1aeb560",
+      "sourceStatus": "experimental pushed provider branch; clean source archive build; public HTTP implemented"
     },
     {
       "package": "@cordisx/protocol",
@@ -29,7 +29,7 @@
   ],
   "rebuild": {
     "economy": "checkout exact sourceCommit; npm ci --ignore-scripts; npm run build; npm pack --ignore-scripts",
-    "hostAndProtocol": "Provider-built immutable tarballs; original Host baseline workspace build and Protocol full check/distribution reported by provider. No local source edits to packaged inputs."
+    "hostAndProtocol": "Host source 4fb6043 clean archive npm ci and full workspace build; protocol 8adc1aa full check/distribution reported by provider. Artifacts are immutable source-built inputs, not a registry publication."
   },
-  "runtimeLimitation": "Awaiting Host artifact with public ctx.http implementation. Current Host baseline only compiles the pre-existing Pet capabilities."
+  "runtimeLimitation": "Public Host HTTP implementation is included. Native App/Keychain interaction was not exercised; generation reload requires reauthorization. Provider full owner gate is separate from the complete Pet check."
 }

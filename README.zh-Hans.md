@@ -25,7 +25,7 @@ npm run check
 npm run dev
 ```
 
-本共享经济实验分支的精确源码构建产物见[经济依赖记录](.development/economy-dependencies.json)。当前基线 Host 包为 `b75fa2c6f9563924feca271242e2709c136033a3`，公共 HTTP 类型来自实验 Protocol `8adc1aab908263e692bd56ca6165b9aeadabe4b9`。基线 Host 尚未运行该 HTTP 服务，原生使用前必须替换为对应 provider 构建产物。单元与 HTTP 集成测试不代表原生 App 验收；下方旧安装包的基线不适用于当前源码。
+本共享经济实验分支的精确源码构建产物见[经济依赖记录](.development/economy-dependencies.json)：Host `4fb60431564931441927c474dd35188f6596274b`、Protocol `8adc1aab908263e692bd56ca6165b9aeadabe4b9`、Economy `80aa91c6168126ac2b164446cd365d2f7c6249a2`。Host 包已包含公共 HTTP 授权；原生 App／Keychain 交互尚未验证。单元与 HTTP 集成测试和原生验收分别记录；下方旧安装包的基线不适用于当前源码。
 
 Avatar 依赖的源提交与压缩包校验值见[源码依赖记录](.development/README.md)。从正式合入源码打包不等于 npm 发布，实际产物以包清单和锁文件为准；Avatar React rc.9 来自正式合并提交 `a06ba84c123cf82e2b1a59c36b403392e22f9d08`，核心精确固定为 registry rc.9。
 

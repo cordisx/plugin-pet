@@ -1,4 +1,3 @@
-import type { HttpClientV1 } from '@cordisx/protocol/plugin-http/v1'
 import Schema from '@deepseek-ai/schemastery'
 import { type PetEconomyConfig, petEconomyConnector } from './pet-economy-host.js'
 import '@oneworks/avatar-react/renderer.css'
@@ -51,7 +50,7 @@ export const inject = [
   'usage',
   'http',
 ]
-export function apply(ctx: Context & { readonly http?: HttpClientV1 }, config: PetEconomyConfig = {}): void {
+export function apply(ctx: Context, config: PetEconomyConfig = {}): void {
   const client = new PetClient(ctx.documents, undefined, ctx.usage, undefined, petEconomyConnector(ctx.http, config))
   const navigate = installPetPages(ctx, client)
   ctx.effect(() => {

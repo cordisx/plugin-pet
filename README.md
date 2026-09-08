@@ -25,7 +25,7 @@ npm run check
 npm run dev
 ```
 
-This experimental economy branch uses exact source-built package artifacts recorded in [the economy dependency record](.development/economy-dependencies.json). Its current baseline Host package is `b75fa2c6f9563924feca271242e2709c136033a3`; the public HTTP contract is experimental Protocol `8adc1aab908263e692bd56ca6165b9aeadabe4b9`. The baseline Host does not yet run that HTTP service: a compatible provider artifact must replace it before native use. Unit/HTTP integration evidence does not establish native App acceptance. Do not use the older release baseline below for this source tree.
+This experimental economy branch uses exact source-built package artifacts recorded in [the economy dependency record](.development/economy-dependencies.json): Host `4fb60431564931441927c474dd35188f6596274b`, Protocol `8adc1aab908263e692bd56ca6165b9aeadabe4b9`, and Economy `80aa91c6168126ac2b164446cd365d2f7c6249a2`. The Host package includes public HTTP authorization; native App/Keychain interaction has not been verified. Unit/HTTP integration evidence is separate from native acceptance. Do not use the older release baseline below for this source tree.
 
 Avatar dependency provenance is recorded in [the source dependency record](.development/README.md), including the exact source commit and tarball checksum. A tarball built from merged source is not an npm publication; the package manifest and lockfile identify the actual artifact. Avatar React rc.9 is built from canonical merged commit `a06ba84c123cf82e2b1a59c36b403392e22f9d08`; the core is pinned to registry rc.9.
 
