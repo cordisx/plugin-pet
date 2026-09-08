@@ -15,3 +15,7 @@ node scripts/slice-item-sheet.mjs assets/source/items-sheet-v1.png src/assets/it
 ```
 
 The script detects the 81 alpha-connected silhouettes and assigns them to grid cells. It rejects missing/ambiguous cells, preserves alpha, excludes adjacent objects, and adds consistent padding. Inspect the output after changing a source sheet. Keep the original individual images when adding new sprite-sheet variants.
+
+## Cyber equipment
+
+Six RGBA sprites in `src/assets/items/item-water-dispenser{,-2,-3}.png` and `item-auto-feeder{,-2,-3}.png` share a 256 px square canvas. The built-in image generation tool produced [the source sheet](source/cyber-devices-sheet.png); [the exact prompt and crop specification](source/cyber-devices-prompt.md) preserve provenance. Rows identify equipment, columns identify upgrade levels. The shop lists only the base type; higher sprites belong to upgrades. `pet-device-art.tsx` maps each generated reservoir window and layers actual supplies inside it without redrawing the device.

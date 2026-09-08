@@ -9,5 +9,5 @@ export const PET_SPECIES_METABOLISM: Record<PetSpecies, number> = { cat: 1, dog:
 export function foodEffect(pet: { care: { weight: number }; attributes: PetAttributes }, food: PetProduct) {
   // Catalog nutrition is calibrated to a 4 kg animal. A larger body needs more food.
   const factor = 4 / pet.care.weight * pet.attributes.absorption * (pet.attributes.talent === 'double-nutrition' ? 2 : 1)
-  return { fullness: Math.round((food.fullness ?? 0) * factor * 10) / 10, energy: food.energy ?? 0, affinity: food.affinity ?? 0 }
+  return { fullness: Math.round((food.fullness ?? 0) * factor * 10) / 10, energy: food.energy ?? 0, mood: food.mood ?? 0, affinity: food.affinity ?? 0 }
 }

@@ -4,9 +4,11 @@ export type PetProduct = {
   kind: 'pet' | 'skin' | 'food' | 'item'
   name: string
   price: number
+  device?: 'water' | 'feeder'
   species?: PetSpecies
   paletteId?: string
   fullness?: number
+  mood?: number
   energy?: number
   affinity?: number
   requiredAffinity?: number
@@ -25,22 +27,24 @@ export const PET_CATALOG: readonly PetProduct[] = [
   { id: 'skin-lop', kind: 'skin', name: '垂耳奶糖', species: 'rabbit', paletteId: 'holland-lop', price: 0 },
   { id: 'skin-dutch', kind: 'skin', name: '黑白布丁', species: 'rabbit', paletteId: 'dutch-rabbit', price: 80 },
   { id: 'skin-friend', kind: 'skin', name: '相伴纪念', species: 'cat', paletteId: 'british-shorthair', price: 0, requiredAffinity: 30 },
-  { id: 'food-snack', kind: 'food', name: '比特脆脆', price: 5, affinity: 2, fullness: 20, energy: 5 },
-  { id: 'food-meal', kind: 'food', name: '显存糯米团', price: 12, affinity: 6, fullness: 45, energy: 15 },
-  { id: 'food-feast', kind: 'food', name: '满血火锅', price: 25, affinity: 14, fullness: 80, energy: 30 },
-  { id: 'food-fish', kind: 'food', name: '向量小鱼干', price: 10, affinity: 4, fullness: 32, energy: 10 },
-  { id: 'food-chicken', kind: 'food', name: '张量鸡块', price: 15, affinity: 5, fullness: 50, energy: 18 },
-  { id: 'food-carrot', kind: 'food', name: '线程胡萝卜', price: 6, affinity: 2, fullness: 24, energy: 8 },
-  { id: 'food-berry', kind: 'food', name: '缓存莓果', price: 8, affinity: 4, fullness: 18, energy: 20 },
-  { id: 'food-pudding', kind: 'food', name: '梯度布丁', price: 18, affinity: 8, fullness: 40, energy: 24 },
-  { id: 'food-apple', kind: 'food', name: '红苹果', price: 5, affinity: 2, fullness: 16, energy: 6 },
-  { id: 'food-corn', kind: 'food', name: '玉米棒', price: 7, affinity: 2, fullness: 28, energy: 8 },
-  { id: 'food-shrimp', kind: 'food', name: '脆脆虾', price: 13, affinity: 5, fullness: 35, energy: 16 },
-  { id: 'food-egg', kind: 'food', name: '元气蛋', price: 8, affinity: 3, fullness: 30, energy: 10 },
-  { id: 'food-croissant', kind: 'food', name: '月牙可颂', price: 12, affinity: 4, fullness: 42, energy: 12 },
-  { id: 'food-riceball', kind: 'food', name: '饭团补给', price: 14, affinity: 4, fullness: 55, energy: 15 },
-  { id: 'food-watermelon', kind: 'food', name: '冰镇西瓜', price: 6, affinity: 3, fullness: 15, energy: 18 },
-  { id: 'food-pancake', kind: 'food', name: '松饼叠叠乐', price: 16, affinity: 6, fullness: 48, energy: 22 },
+  { id: 'food-snack', kind: 'food', name: '比特脆脆', price: 5, affinity: 2, fullness: 20, energy: 5, mood: 3 },
+  { id: 'food-meal', kind: 'food', name: '显存糯米团', price: 12, affinity: 6, fullness: 45, energy: 15, mood: 6 },
+  { id: 'food-feast', kind: 'food', name: '满血火锅', price: 25, affinity: 14, fullness: 80, energy: 30, mood: 10 },
+  { id: 'food-fish', kind: 'food', name: '向量小鱼干', price: 10, affinity: 4, fullness: 32, energy: 10, mood: 4 },
+  { id: 'food-chicken', kind: 'food', name: '张量鸡块', price: 15, affinity: 5, fullness: 50, energy: 18, mood: 4 },
+  { id: 'food-carrot', kind: 'food', name: '线程胡萝卜', price: 6, affinity: 2, fullness: 24, energy: 8, mood: 2 },
+  { id: 'food-berry', kind: 'food', name: '缓存莓果', price: 8, affinity: 4, fullness: 18, energy: 20, mood: 12 },
+  { id: 'food-pudding', kind: 'food', name: '梯度布丁', price: 18, affinity: 8, fullness: 40, energy: 24, mood: 18 },
+  { id: 'food-apple', kind: 'food', name: '红苹果', price: 5, affinity: 2, fullness: 16, energy: 6, mood: 3 },
+  { id: 'food-corn', kind: 'food', name: '玉米棒', price: 7, affinity: 2, fullness: 28, energy: 8, mood: 3 },
+  { id: 'food-shrimp', kind: 'food', name: '脆脆虾', price: 13, affinity: 5, fullness: 35, energy: 16, mood: 6 },
+  { id: 'food-egg', kind: 'food', name: '元气蛋', price: 8, affinity: 3, fullness: 30, energy: 10, mood: 5 },
+  { id: 'food-croissant', kind: 'food', name: '月牙可颂', price: 12, affinity: 4, fullness: 42, energy: 12, mood: 8 },
+  { id: 'food-riceball', kind: 'food', name: '饭团补给', price: 14, affinity: 4, fullness: 55, energy: 15, mood: 4 },
+  { id: 'food-watermelon', kind: 'food', name: '冰镇西瓜', price: 6, affinity: 3, fullness: 15, energy: 18, mood: 14 },
+  { id: 'food-pancake', kind: 'food', name: '松饼叠叠乐', price: 16, affinity: 6, fullness: 48, energy: 22, mood: 16 },
+  { id: 'item-water-dispenser', kind: 'item', device: 'water', name: '自动饮水机', price: 120 },
+  { id: 'item-auto-feeder', kind: 'item', device: 'feeder', name: '自动喂食器', price: 180 },
   { id: 'item-reboot-core', kind: 'item', name: '复活图腾', price: 80 },
 ]
 export const PET_DEFAULT_SKINS: Record<PetSpecies, string> = { cat: 'skin-white', dog: 'skin-shiba', rabbit: 'skin-lop' }

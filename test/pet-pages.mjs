@@ -65,8 +65,17 @@ test('shop filters persist and hide already owned products', () => {
 
 test('busy state disables care mutations and settings selectors while navigation stays available', () => {
   const html = render('pets', createPetState(), true)
-  assert.match(html, /<button[^>]*disabled=""[^>]*>喂给猫猫<\/button>/)
-  assert.match(html, /<button[^>]*disabled=""[^>]*>[\s\S]*?休息<\/button>/)
+  for (const label of ['喂给猫猫', '休息']) {
+    const button = html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0]
+    assert.ok(button, `missing accessible action ${label}`)
+    assert.match(button, /disabled=""/)
+  }
+  const navigation = html.match(/<nav aria-label="宠物页面">([\s\S]*?)<\/nav>/)?.[1]
+  assert.ok(navigation)
+  for (const tag of navigation.matchAll(/<button\b[^>]*>/g)) assert.doesNotMatch(tag[0], /disabled=/)
+  const foodTab = html.match(/<button[^>]*aria-label="喂食"[^>]*>/)?.[0]
+  assert.ok(foodTab)
+  assert.doesNotMatch(foodTab, /disabled=/)
   for (const tag of render('settings',createPetState(),true).matchAll(/<select\b[^>]*>/g)) assert.match(tag[0], /disabled=""/)
 })
 
@@ -118,10 +127,10 @@ test('shop buys into inventory with quantity and no recipient or use action', ()
 })
 test('care offers immediate food selection and shows distinct states and attributes', () => {
   const home = render('pets')
-  assert.match(home,/背包里的食物/)
+  assert.match(home,/aria-label="选择食物"/)
   assert.match(home,/喂给猫猫/)
-  assert.match(home,/>饮水</)
-  assert.match(home,/>装扮</)
+  assert.match(home,/aria-label="饮水"/)
+  assert.match(home,/aria-label="装扮"/)
   const detail = render('pet-detail')
   assert.match(detail,/aria-label="饮水"/)
   assert.match(detail,/aria-label="心情"/)
@@ -129,4 +138,15 @@ test('care offers immediate food selection and shows distinct states and attribu
   assert.match(detail,/幸运/)
   assert.match(detail,/代谢/)
   assert.match(detail,/吸收/)
+})
+
+test('out-of-stock home care has one accessible purchase action instead of duplicate text controls', () => {
+  const state = createPetState(); state.foodInventory = {}
+  const html = render('pets', state)
+  const actions = [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].filter(match => /aria-label="购买/.test(match[1]))
+  assert.equal(actions.length, 1)
+  assert.match(actions[0][1], /aria-label="购买比特脆脆"/)
+  assert.match(actions[0][2], /<svg/)
+  assert.equal(actions[0][2].replace(/<svg[\s\S]*?<\/svg>/g, '').trim(), '')
+  assert.doesNotMatch(html, /没有库存|去商店补给/)
 })

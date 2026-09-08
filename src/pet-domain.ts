@@ -1,3 +1,4 @@
+import { applyPetDevices, deviceCapacity, deviceFoodCount, DEFAULT_PET_DEVICES, PET_DEVICE_IDS, PET_DEVICE_UPGRADE_COST, type PetDeviceSettings } from './pet-devices.js'
 import { initialPetAttributes, foodEffect, petSeed, type PetAttributes } from './pet-attributes.js'
 import { initialPetTraits, PET_PERSONALITIES, type PetTraits } from './pet-traits.js'
 import { advancePetCare, initialPetCare, PET_CARE, PET_BASE_WEIGHT, type PetCare, type PetLifeStatus } from './pet-care.js'
@@ -39,6 +40,7 @@ export type PetState = {
   itemInventory: Record<string, number>
   careUpdatedAt: number | null
   careHistory: { key: string; petId: string; kind: 'death' | 'bury' | 'revive'; at: number }[]
+  devices: PetDeviceSettings
   settings: PetSettings
   /** Economic effects retain permanent idempotency evidence. */
   receipts: PetReceipt[]
@@ -56,6 +58,10 @@ export type PetCommand =
   | { type: 'setActive'; petIds: string[] }
   | { type: 'setMain'; petId: string }
   | { type: 'move'; petId: string; x: number }
+  | { type: 'device-settings'; value: Partial<Pick<PetDeviceSettings, 'waterEnabled' | 'feederEnabled' | 'foodId'>> }
+  | { type: 'device-upgrade'; device: 'water' | 'feeder' }
+  | { type: 'device-refill-water'; quantity: number }
+  | { type: 'device-load-food'; foodId: string; quantity: number }
   | { type: 'settings'; value: Partial<PetSettings> }
   | { type: 'interact'; petId: string }
   | { type: 'carePulse'; elapsedMs: number; restingPetIds?: string[] }
@@ -73,12 +79,12 @@ export function createPetState(): PetState {
     pets: [{ id: 'pet:cat', species: 'cat', name: '猫猫', skinId: 'skin-white', affinity: 0, x: .7, status: 'alive', attributes: initialPetAttributes('pet:cat'), exploration: { onlineMs: 0, eventIndex: 0, events: [] }, traits: initialPetTraits('pet:cat'), care: initialPetCare() }],
     mainPetId: 'pet:cat', activePetIds: ['pet:cat'],
     wallet: { balance: 0, earned: 0, spent: 0 }, ownedSkinIds: ['skin-white', 'skin-orange'],
-    foodInventory: { 'food-snack': 3 }, itemInventory: {}, careUpdatedAt: null, careHistory: [], settings: { ...DEFAULT_PET_SETTINGS }, receipts: [], recentReceipts: [], usage: {},
+    foodInventory: { 'food-snack': 3 }, itemInventory: {}, devices: structuredClone(DEFAULT_PET_DEVICES), careUpdatedAt: null, careHistory: [], settings: { ...DEFAULT_PET_SETTINGS }, receipts: [], recentReceipts: [], usage: {},
   }
 }
 export const PET_RECENT_RECEIPT_LIMIT = 128
-const economicKinds = new Set(['buy', 'claim', 'feed', 'usage', 'usage-baseline', 'bury', 'revive', 'forage'])
-const recentKinds = new Set(['equip', 'rename', 'setActive', 'setMain', 'move', 'settings', 'interact', 'water', 'carePulse'])
+const economicKinds = new Set(['buy', 'claim', 'feed', 'usage', 'usage-baseline', 'bury', 'revive', 'forage', 'device-water', 'device-feed', 'device-refill-water', 'device-load-food', 'device-upgrade'])
+const recentKinds = new Set(['equip', 'rename', 'setActive', 'setMain', 'move', 'settings', 'interact', 'water', 'carePulse', 'device-settings'])
 function record(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value) }
 function usageSource(value: string): boolean { return /^[a-zA-Z0-9:_-]{1,120}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value) }
 function validReceipt(item: PetReceipt): boolean {
@@ -105,6 +111,16 @@ function validSettings(value: PetSettings): boolean {
     .every(key => typeof value[key as keyof PetSettings] === 'boolean')
     && Number.isSafeInteger(value.maxActivePets) && value.maxActivePets >= 1 && value.maxActivePets <= 12
 }
+function validateDeviceSettings(state: PetState, devices: PetDeviceSettings): void {
+  assert(record(devices) && typeof devices.waterEnabled === 'boolean' && typeof devices.feederEnabled === 'boolean' && typeof devices.foodId === 'string', '设备设置无效')
+  assert(petProduct(devices.foodId).kind === 'food', '请选择有效食物')
+  assert(['water','feeder'].every(kind => { const level = kind === 'water' ? devices.waterLevel : devices.feederLevel; const owned = state.itemInventory[PET_DEVICE_IDS[kind as 'water' | 'feeder']] === 1; return integer(level) && level <= 3 && (owned ? level >= 1 : level === 0) }), '设备等级无效')
+  assert(Number.isFinite(devices.waterStored) && devices.waterStored >= 0 && devices.waterStored <= deviceCapacity(state, 'water').capacity, '储水量无效')
+  assert(Array.isArray(devices.foodQueue) && devices.foodQueue.every(batch => record(batch) && typeof batch.foodId === 'string' && petProduct(batch.foodId).kind === 'food' && integer(batch.quantity) && batch.quantity > 0) && deviceFoodCount(devices) <= deviceCapacity(state, 'feeder').capacity, '储粮无效')
+  assert(integer(devices.waterCursor) && integer(devices.feederCursor), '设备轮转状态无效')
+  assert(!devices.waterEnabled || deviceCapacity(state, 'water').tier > 0, '请先购买自动饮水机')
+  assert(!devices.feederEnabled || deviceCapacity(state, 'feeder').tier > 0, '请先购买自动喂食器')
+}
 /** Fail closed on malformed economy data; never silently replace an existing wallet. */
 export function migratePetState(raw: unknown): PetState {
   if (raw == null) return createPetState()
@@ -116,6 +132,13 @@ export function migratePetState(raw: unknown): PetState {
   assert(validSettings(state.settings), '宠物设置无效')
   assert(Array.isArray(state.pets) && state.pets.length > 0, '宠物存档缺少宠物')
   if (state.itemInventory === undefined) state.itemInventory = {}
+  const savedDevices = state.devices
+  if (state.devices === undefined) state.devices = structuredClone(DEFAULT_PET_DEVICES)
+  else if (record(state.devices)) state.devices = { ...structuredClone(DEFAULT_PET_DEVICES), ...state.devices }
+  if (record(state.devices)) {
+    if (!savedDevices || savedDevices.waterLevel === undefined) state.devices.waterLevel = state.itemInventory[PET_DEVICE_IDS.water] === 1 ? 1 : 0
+    if (!savedDevices || savedDevices.feederLevel === undefined) state.devices.feederLevel = state.itemInventory[PET_DEVICE_IDS.feeder] === 1 ? 1 : 0
+  }
   if (state.careUpdatedAt === undefined) state.careUpdatedAt = null
   if (state.careHistory === undefined) state.careHistory = []
   const ids = new Set<string>()
@@ -158,6 +181,8 @@ export function migratePetState(raw: unknown): PetState {
   assert(state.pets.every(item => state.ownedSkinIds.includes(item.skinId)), '已装备未拥有皮肤')
   assert(record(state.foodInventory) && Object.entries(state.foodInventory).every(([id, count]) => petProduct(id).kind === 'food' && integer(count)), '食物库存无效')
   assert(record(state.itemInventory) && Object.entries(state.itemInventory).every(([id, count]) => petProduct(id).kind === 'item' && integer(count)), '道具库存无效')
+  assert(PET_CATALOG.filter(item => item.device).every(item => (state.itemInventory[item.id] ?? 0) <= 1), '设备库存无效')
+  validateDeviceSettings(state, state.devices)
   assert(state.careUpdatedAt === null || (integer(state.careUpdatedAt) && state.careUpdatedAt <= 8.64e15), '照顾时间无效')
   assert(Array.isArray(state.careHistory) && state.careHistory.every(item => record(item) && typeof item.key === 'string' && ids.has(item.petId)
     && ['death', 'bury', 'revive'].includes(item.kind) && integer(item.at)), '照顾历史无效')
@@ -239,6 +264,7 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
         }
         return next
       })
+      if (elapsed > 0) applyPetDevices(state, transaction.now)
       state.activePetIds = state.activePetIds.filter(id => pet(state, id).status === 'alive')
       if (pet(state, state.mainPetId).status !== 'alive') state.mainPetId = state.pets.find(entity => entity.status === 'alive')?.id ?? state.mainPetId
       break
@@ -278,6 +304,10 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       const quantity = command.quantity ?? 1
       assert(integer(quantity) && quantity > 0 && quantity <= 99, '购买数量应为 1 至 99')
       assert(item.kind === 'food' || item.kind === 'item' || quantity === 1, '永久商品只能购买一次')
+      if (item.kind === 'item' && item.device) {
+        assert(quantity === 1, '永久设备只能购买一件')
+        assert(deviceCapacity(state, item.device).tier === 0, '你已拥有这台设备')
+      }
       if (item.kind === 'pet') assert(!state.pets.some(entity => entity.species === item.species), '你已拥有这只宠物')
       if (item.kind === 'skin') {
         assert(!state.ownedSkinIds.includes(item.id), '你已拥有这款皮肤')
@@ -300,6 +330,8 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
         assert(integer(count), '食物库存超出可安全保存范围')
         inventory[item.id] = count
       }
+      if (item.device === 'water') { state.devices.waterEnabled = true; state.devices.waterLevel = 1 }
+      if (item.device === 'feeder') { state.devices.feederEnabled = true; state.devices.feederLevel = 1 }
       detail = `${item.name} × ${quantity}`
       break
     }
@@ -326,7 +358,7 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       entity.care.fullness = Math.min(100, entity.care.fullness + foodEffect(entity, food).fullness)
       entity.care.energy = Math.min(100, entity.care.energy + (food.energy ?? 0))
       if (entity.care.fullness >= PET_CARE.lowFullnessThreshold) entity.care.lowFullnessMs = 0
-      entity.care.mood = Math.min(100, entity.care.mood + 4 * entity.traits.cheerfulness)
+      entity.care.mood = Math.min(100, entity.care.mood + foodEffect(entity, food).mood * entity.traits.cheerfulness)
       entity.affinity += food.affinity ?? 0
       assert(integer(entity.affinity), '亲密度超出可安全保存范围')
       unlockAffinitySkins(state, entity)
@@ -349,6 +381,51 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       assert(Number.isFinite(command.x), '宠物位置无效')
       livePet(state, command.petId).x = Math.max(0, Math.min(1, command.x))
       break
+    case 'device-upgrade': {
+      assert(command.device === 'water' || command.device === 'feeder', '设备类型无效')
+      const level = deviceCapacity(state, command.device).tier
+      assert(level > 0, '请先购买设备')
+      assert(level < 3, '设备已满级')
+      const cost = PET_DEVICE_UPGRADE_COST[command.device][level]!
+      assert(state.wallet.balance >= cost, '宠物币不足')
+      state.wallet.balance -= cost
+      state.wallet.spent += cost
+      if (command.device === 'water') state.devices.waterLevel++
+      else state.devices.feederLevel++
+      coins = -cost
+      detail = `${command.device === 'water' ? '饮水机' : '喂食器'}升级至 ${level + 1} 级`
+      break
+    }
+    case 'device-refill-water': {
+      const { capacity, tier } = deviceCapacity(state, 'water')
+      assert(tier > 0, '请先购买自动饮水机')
+      assert(integer(command.quantity) && command.quantity > 0, '补水数量应为正整数')
+      state.devices.waterStored = Math.min(capacity, state.devices.waterStored + command.quantity)
+      detail = '给自动饮水机补充了清水'
+      break
+    }
+    case 'device-load-food': {
+      const { capacity, tier } = deviceCapacity(state, 'feeder')
+      assert(tier > 0, '请先购买自动喂食器')
+      const food = petProduct(command.foodId)
+      assert(food.kind === 'food', '请选择有效食物')
+      assert(integer(command.quantity) && command.quantity > 0, '装填数量应为正整数')
+      assert((state.foodInventory[food.id] ?? 0) >= command.quantity, '背包食物不足')
+      assert(deviceFoodCount(state.devices) + command.quantity <= capacity, '超出喂食器容量')
+      state.foodInventory[food.id] -= command.quantity
+      const last = state.devices.foodQueue.at(-1)
+      if (last?.foodId === food.id) last.quantity += command.quantity
+      else state.devices.foodQueue.push({ foodId: food.id, quantity: command.quantity })
+      detail = `向喂食器装填了${food.name} × ${command.quantity}`
+      break
+    }
+    case 'device-settings': {
+      assert(Object.keys(command.value).every(key => ['waterEnabled','feederEnabled','foodId'].includes(key)), '不可通过设置修改设备库存')
+      const devices = { ...state.devices, ...command.value }
+      validateDeviceSettings(state, devices)
+      state.devices = devices
+      break
+    }
     case 'settings': {
       const settings = { ...state.settings, ...command.value }
       assert(validSettings(settings) && state.activePetIds.length <= settings.maxActivePets, '设置无效，请先减少出场宠物')

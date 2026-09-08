@@ -1,3 +1,9 @@
+import autofeeder3 from './assets/items/item-auto-feeder-3.png'
+import autofeeder2 from './assets/items/item-auto-feeder-2.png'
+import autofeeder1 from './assets/items/item-auto-feeder.png'
+import waterdispenser3 from './assets/items/item-water-dispenser-3.png'
+import waterdispenser2 from './assets/items/item-water-dispenser-2.png'
+import waterdispenser1 from './assets/items/item-water-dispenser.png'
 import apple from './assets/items/batch/apple.png'
 import corn from './assets/items/batch/corn.png'
 import shrimp from './assets/items/batch/shrimp.png'
@@ -17,7 +23,14 @@ import pudding from './assets/items/food-pudding.png'
 import water from './assets/items/water.png'
 import totem from './assets/items/totem.png'
 
-const itemImages: Record<string, string> = {
+export const itemImages: Record<string, string> = {
+  'item-water-dispenser': waterdispenser1,
+  'item-water-dispenser-2': waterdispenser2,
+  'item-water-dispenser-3': waterdispenser3,
+  'item-auto-feeder': autofeeder1,
+  'item-auto-feeder-2': autofeeder2,
+  'item-auto-feeder-3': autofeeder3,
+
   'food-apple': apple,
   'food-corn': corn,
   'food-shrimp': shrimp,
@@ -34,5 +47,5 @@ const itemImages: Record<string, string> = {
 /** Generated transparent raster assets shared by care, shop and inventory. */
 export function PetFoodArt({ id }: { id: string }) {
   const src = itemImages[id]
-  return src ? <img src={src} width="96" height="80" alt="" aria-hidden="true" draggable={false} style={{ objectFit: 'contain', alignSelf: 'center', flexShrink: 0 }} /> : null
+  return src ? <img className="pet-food-art" src={src} width="96" height="80" alt="" aria-hidden="true" draggable={false} style={{ objectFit: 'contain', alignSelf: 'center', flexShrink: 0 }} /> : null
 }
