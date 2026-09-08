@@ -11,13 +11,12 @@ const descriptions: Record<PetSection, string> = { pets: '照顾宠物，选择�
 const text = (key: string, fallback: string) => ({ namespace: 'pet', key, fallback })
 export function installPetPages(ctx: Context, client: PetClient): (section: PetSection) => Promise<void> {
   const navigation: PetPageNavigation = { session: { filter: 'all', hideOwned: false }, open: section => { void ctx.routes.navigate({ id: `pet.${section}` }) } }
-  const tabs = PET_SECTIONS.filter(section => section !== 'ledger').map(id => ({ id, route: { id: `pet.${id}` } }))
   for (const section of PET_SECTIONS) {
     const id = `pet.${section}`
     const description = text(`${id}.description`, descriptions[section])
     ctx.pages.register({ $schema: CORDISX_PAGE_SCHEMA_V3, schemaVersion: 3, id, title: text(id, labels[section]), description, icon: section === 'shop' ? 'host:marketplace' : section === 'bag' ? 'host:archive' : section === 'settings' ? 'host:settings' : section === 'ledger' ? 'host:history' : 'host:people', chrome: 'standard' }, defineReactPage(createPetPage(client, section, navigation)))
     ctx.routes.register({ $schema: CORDISX_ROUTE_SCHEMA_V2, schemaVersion: 2, id, path: `/manager/extensions/pet/${section}`, outlet: 'manager.content', page: id, title: text(id, labels[section]), description })
-    ctx.managerContent.register({ $schema: CORDISX_MANAGER_CONTENT_NAVIGATION_SCHEMA_V1, schemaVersion: 1, id, route: { id }, header: { title: { kind: 'route' } }, ...(section === 'ledger' ? { parentRoute: { id: 'pet.shop' } } : { tabs }) })
+    ctx.managerContent.register({ $schema: CORDISX_MANAGER_CONTENT_NAVIGATION_SCHEMA_V1, schemaVersion: 1, id, route: { id }, header: { title: { kind: 'route' } }, ...(section === 'pets' ? {} : { parentRoute: { id: section === 'ledger' ? 'pet.shop' : 'pet.pets' } }) })
   }
   for (const [section, title, parent] of [['pet-detail', '宠物详情', 'pets'], ['product-detail', '商品详情', 'shop'], ['bag-detail', '使用物品', 'bag']] as const) {
     const id = `pet.${section}`

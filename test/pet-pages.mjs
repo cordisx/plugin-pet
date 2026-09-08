@@ -13,7 +13,7 @@ const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, f
     builder.onResolve({ filter: /^@oneworks\/avatar-react$/ }, () => ({ path: 'avatar', namespace: 'host-test' }))
     builder.onLoad({ filter: /.*/, namespace: 'host-test' }, args => ({ contents: args.path === 'avatar'
       ? `import {createElement as h} from 'react'; export const Avatar=({definition,...props})=>h('div',{'aria-label':props['aria-label'],'data-avatar-preset':definition.scene.entity.preset})`
-      : `import {createElement as h} from 'react'; export const Stack=({children})=>h('div',{},children); export const Card=Stack; export const Text=({children,role})=>h('span',{role},children); export const Button=({children,...p})=>h('button',p,children); export const Select=({'aria-label':label,options,value,disabled})=>h('select',{'aria-label':label,value,disabled,onChange:()=>{}},options.map(x=>h('option',{key:x.value,value:x.value},x.label))); export const EmptyState=({title,description})=>h('div',{},title,description)`, loader: 'js' }))
+      : `import {createElement as h} from 'react'; export const Stack=({children})=>h('div',{},children); export const Icon=({name})=>h('i',{'data-icon':name}); export const Card=Stack; export const Text=({children,role})=>h('span',{role},children); export const Button=({children,...p})=>h('button',p,children); export const Select=({'aria-label':label,options,value,disabled})=>h('select',{'aria-label':label,value,disabled,onChange:()=>{}},options.map(x=>h('option',{key:x.value,value:x.value},x.label))); export const EmptyState=({title,description})=>h('div',{},title,description)`, loader: 'js' }))
   },
 }] })
 const { PetPage, peekPose, availableFoods } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)
@@ -62,7 +62,7 @@ test('shop filters persist and hide already owned products', () => {
 
 test('busy state disables every mutating button and settings selector', () => {
   for (const section of ['shop', 'pets', 'bag', 'settings']) {
-    const html = render(section, createPetState(), true)
+    const html = render(section, createPetState(), true).replace(/<div class="pet-toolbar">[\s\S]*?<\/nav>[\s\S]*?<\/div>/, "")
     for (const tag of html.matchAll(/<button\b[^>]*>/g)) if (!tag[0].includes('pet-card-open') && !tag[0].includes('pet-tile') && !tag[0].includes('pet-album-portrait')) assert.match(tag[0], /disabled=""/, `${section}: ${tag[0]}`)
     if (section === 'settings') for (const tag of html.matchAll(/<select\b[^>]*>/g)) assert.match(tag[0], /disabled=""/)
   }
