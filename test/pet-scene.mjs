@@ -3,7 +3,7 @@ import test from 'node:test'
 import { idlePose } from '../src/pet-idle.ts'
 import { build } from 'esbuild'
 const bundle = await build({entryPoints:['src/pet-scene-model.ts'],bundle:true,write:false,format:'esm',platform:'node'})
-const {createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition,advanceSceneScale,sceneHitRegion,restingSceneIds,reconcileSceneBodies} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+const {requestSceneRest,createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition,advanceSceneScale,sceneHitRegion,restingSceneIds,reconcileSceneBodies} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 const bounds = { width: 640, height: 350 }
 const opts = { reducedMotion: false, idleAnimations: true, random: () => .8 }
 const body = (id = 'cat', x = .3) => createSceneBody({id,x},640,0,0)
@@ -198,4 +198,15 @@ test('crowded new arrivals stay in bounds and do not eject old pets', () => {
   const result=reconcileSceneBodies([old],[{id:'a',x:0},{id:'b',x:0},{id:'c',x:1}],150,100)
   assert.equal(old.x,0)
   assert.ok(result.every(body=>body.x>=0 && body.x<=22))
+})
+
+test('manual rest survives recovery from an interrupted hop and settles into sleep', () => {
+  const pet = body()
+  pet.mode = 'hop'; pet.pose = idlePose('hop', 500, 80)
+  requestSceneRest(pet, 500)
+  for (let now = 532; now <= 2500; now += 32) advanceScene([pet], bounds, now, 32, opts)
+  assert.equal(pet.mode, 'sleep')
+  assert.deepEqual(restingSceneIds([pet]), ['cat'])
+  inputSceneBody(pet, {phase:'start',deltaX:0,deltaY:0}, bounds, 2600)
+  assert.equal(pet.sleepRequested, false)
 })

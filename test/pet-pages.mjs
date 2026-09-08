@@ -19,9 +19,9 @@ const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, f
 const { PetPage } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)
 const stateBundle = await build({ entryPoints: ['src/pet-domain.ts'], bundle: true, format: 'esm', platform: 'node', write: false })
 const { createPetState } = await import(`data:text/javascript;base64,${Buffer.from(stateBundle.outputFiles[0].text).toString('base64')}`)
-function render(section, state = createPetState(), busy = false, usage) {
+function render(section, state = createPetState(), busy = false, usage, navigation) {
   const snapshot = { state, error: null, busy, usage }
-  return renderToStaticMarkup(createElement(PetPage, { section, client: { getSnapshot: () => snapshot, subscribe: () => () => {}, execute: async () => {} } }))
+  return renderToStaticMarkup(createElement(PetPage, { section, navigation, client: { getSnapshot: () => snapshot, subscribe: () => () => {}, execute: async () => {} } }))
 }
 test('shop renders real avatar definitions and unavailable income without offering a mint control', () => {
   const html = render('shop')
@@ -41,21 +41,29 @@ test('wallet distinguishes permission denial from connected partial coverage', (
   assert.match(ready, /最近同步/)
   assert.doesNotMatch(ready, /奖励暂不可用/)
 })
-test('pet, bag and settings pages expose distinct care controls and accessible names', () => {
-  assert.match(render('pets'), /设为主宠/)
-  assert.match(render('pets'), /for="name-pet:cat"/)
-  assert.match(render('bag'), /试穿皮肤/)
-  assert.match(render('bag'), /奶咖 · 未解锁/)
-  assert.match(render('bag'), /消耗 1 份/)
+test('overview keeps care forms in a secondary page and bag shows owned inventory', () => {
+  const state = createPetState()
+  const navigation = {session:{selectedPet:'pet:cat', filter:'all',hideOwned:false},open:()=>{}}
+  assert.doesNotMatch(render('pets'), /for="name-pet:cat"/)
+  assert.match(render('pets'), /照顾与装扮/)
+  assert.match(render('pet-detail',state,false,undefined,navigation), /for="name-pet:cat"/)
+  assert.match(render('pet-detail',state,false,undefined,navigation), /设为主宠/)
+  assert.doesNotMatch(render('bag'), /奶咖 · 未解锁/)
   assert.match(render('settings'), /aria-label="减少动态效果"/)
-  assert.match(render('settings'), /最多同时出场/)
   assert.match(render('ledger'), /还没有收支记录/)
+})
+test('shop filters persist and hide already owned products', () => {
+  const navigation = {session:{filter:'pet',hideOwned:true},open:()=>{}}
+  const html = render('shop',createPetState(),false,undefined,navigation)
+  assert.doesNotMatch(html,/data-avatar-preset="cat"/)
+  assert.match(html,/data-avatar-preset="dog"/)
+  assert.match(html,/aria-pressed="true"/)
 })
 
 test('busy state disables every mutating button and settings selector', () => {
   for (const section of ['shop', 'pets', 'bag', 'settings']) {
     const html = render(section, createPetState(), true)
-    for (const tag of html.matchAll(/<button\b[^>]*>/g)) assert.match(tag[0], /disabled=""/, `${section}: ${tag[0]}`)
+    for (const tag of html.matchAll(/<button\b[^>]*>/g)) if (!tag[0].includes('pet-card-open')) assert.match(tag[0], /disabled=""/, `${section}: ${tag[0]}`)
     if (section === 'settings') for (const tag of html.matchAll(/<select\b[^>]*>/g)) assert.match(tag[0], /disabled=""/)
   }
 })
@@ -64,10 +72,10 @@ test('care pages show weight and distinguish death from a retained memorial', ()
   const state = createPetState()
   state.pets[0].status = 'dead'; state.pets[0].care.health = 0; state.activePetIds = []
   assert.match(render('pets', state), /已逝去/)
-  assert.match(render('pets', state), /体重 4.00 kg/)
-  assert.match(render('pets', state), /安葬/)
-  assert.match(render('bag', state), /重启核心/)
+  assert.match(render('pet-detail', state), /体重 4.00 kg/)
+  assert.match(render('pet-detail', state), /安葬/)
+  assert.match(render('pet-detail', state), /重启核心/)
   state.pets[0].status = 'buried'
-  assert.match(render('pets', state), /aria-label="纪念园"/)
+  assert.match(render('pets', state), /已安葬/)
   assert.match(render('settings', state), /离线时暂停/)
 })

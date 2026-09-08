@@ -9,7 +9,7 @@ export type PetClientSnapshot = {
   error: string | null
   busy: boolean
   usage?: PetUsageStatus
-  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' }
+  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' | 'sleep' }
 }
 export type PetClientRuntime = {
   now: () => number
@@ -123,6 +123,11 @@ export class PetClient {
       this.#lastWallPulse = this.runtime.now()
       this.#careReady = true
     }
+  }
+  requestSleep = (id: string): void => {
+    if (this.#closed) return
+    const pet = this.getSnapshot().state?.pets.find(pet => pet.id === id)
+    if (pet?.status === 'alive') this.update({ feedback: { id, kind: 'sleep', sequence: ++this.#feedback } })
   }
   setRestingPets = (ids: string[]): void => { this.#resting = [...ids] }
   reportError = (message: string): void => { this.update({ error: message }) }

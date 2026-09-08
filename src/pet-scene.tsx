@@ -3,7 +3,7 @@ import { Avatar } from '@oneworks/avatar-react'
 import { type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/avatar'
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import { createPetShapeTimeline } from './pet-scene-shape.js'
-import { advanceScene, reconcileSceneBodies, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
+import { advanceScene, requestSceneRest, reconcileSceneBodies, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
 import { advanceSceneGaze, captureSceneFrame, sameSceneRegion, secondarySceneMotion, type RenderBody, type SceneRegion } from './pet-scene-render.js'
 
 export interface PetSceneEntity { id: string; name: string; x: number; sizeScale?: number; definition: AvatarDefinition }
@@ -19,7 +19,7 @@ export interface PetSceneProps {
   draggable?: boolean
   idleAnimations?: boolean
   pausedIds?: readonly string[]
-  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' }
+  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' | 'sleep' }
 }
 const PetAvatarGeometry = memo(function PetAvatarGeometry({ definition, theme, timeline, time }: {
   definition: AvatarDefinition; theme: 'light' | 'dark'; timeline?: AvatarAnimationTimeline; time: number
@@ -166,7 +166,10 @@ export function PetScene(props: PetSceneProps) {
       if (current.feedback && current.feedback.sequence !== lastFeedback.current) {
         lastFeedback.current = current.feedback.sequence
         const body = bodies.current.find(body => body.id === current.feedback!.id)
-        if (body) { interruptSceneBody(body, now); body.mode = 'wake'; body.started = now; body.irritation = 0 }
+        if (body) {
+          if (current.feedback.kind === 'sleep') requestSceneRest(body, now)
+          else { interruptSceneBody(body, now); body.mode = 'wake'; body.started = now; body.irritation = 0 }
+        }
       }
       const previousModes = new Map(bodies.current.map(body => [body.id, { mode: body.mode, y: body.y }]))
       advanceScene(bodies.current, { width, height }, now, elapsed, {

@@ -193,3 +193,22 @@ test('client binds only the public usage service and exposes ready/denied state 
   client.dispose()
   assert.equal(listeners.size, 0)
 })
+
+test('manual rest targets one living pet without changing persisted inventory', async t => {
+  const bridge = documents(), client = new PetClient(bridge, fakeClock().runtime)
+  t.after(() => client.dispose())
+  await client.start()
+  const before = client.getSnapshot().state
+  const commits = bridge.commits()
+  client.requestSleep('missing')
+  assert.equal(client.getSnapshot().feedback, undefined)
+  client.requestSleep('pet:cat')
+  assert.equal(client.getSnapshot().feedback.kind, 'sleep')
+  assert.equal(client.getSnapshot().feedback.id, 'pet:cat')
+  assert.equal(client.getSnapshot().state, before)
+  assert.equal(bridge.commits(), commits)
+  client.dispose()
+  const snapshot = client.getSnapshot()
+  client.requestSleep('pet:cat')
+  assert.equal(client.getSnapshot(), snapshot)
+})
