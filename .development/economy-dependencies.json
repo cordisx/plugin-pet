@@ -5,10 +5,10 @@
     {
       "package": "cordisx",
       "repository": "https://github.com/cordisx/cordisx",
-      "sourceCommit": "5101d6ec25409a65d939fb4214b4144a5eb672df",
-      "artifact": "dependencies/cordisx-5101d6e.tgz",
-      "sha256": "638477682bf0de2ce2ba5c1b6f793ffbc46b4e238324b17ba39fcb28e8164dc2",
-      "sourceStatus": "experimental pushed provider branch; exact source-built artifact"
+      "sourceCommit": "1d2636adbe239550fd70e3e82d4b43681a800833",
+      "artifact": "dependencies/cordisx-1d2636a.tgz",
+      "sha256": "fbb47a38f3dc31b1db8ffd78b8b182dae1f01ed9de5c07c27f290af95e92a274",
+      "sourceStatus": "experimental pushed provider branch; portable source SDK with complete bundled runtime dependencies"
     },
     {
       "package": "@cordisx/protocol",
@@ -29,7 +29,7 @@
   ],
   "rebuild": {
     "economy": "checkout exact sourceCommit; npm ci --ignore-scripts; npm run build; npm pack --ignore-scripts",
-    "hostAndProtocol": "Host 5101d6e provider full build/typecheck + 34 focused tests; Protocol 465c444 full check/distribution. Artifacts are immutable inputs, not registry publication."
+    "hostAndProtocol": "From exact Host 1d2636adbe239550fd70e3e82d4b43681a800833 checkout run node scripts/prepare-sdk.mjs /absolute/path/to/nonexistent-output; do not run npm ci first. Canonical recipe: https://github.com/cordisx/cordisx/blob/1d2636adbe239550fd70e3e82d4b43681a800833/.agents/docs/sdk-source-packaging.md. Use packages/cordisx-0.1.0-beta.2.tgz and the Protocol package from the same output; verify sdk-evidence.json hashes. Provider full owner gate and native acceptance remain separate."
   },
-  "runtimeLimitation": "Public Host HTTP implementation is included. Native App/Keychain interaction was not exercised; generation reload requires reauthorization. Provider full owner gate is separate from the complete Pet check."
+  "runtimeLimitation": "Pet 171-test owner check passed with previous Host 5101d6e. This final portable Host pin requires Linux CI validation. Native host-isolated startup previously reached a login page, then CDP discovery timed out before Pet/Keychain interaction; native retries are paused. Generation reload requires reauthorization."
 }

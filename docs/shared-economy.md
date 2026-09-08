@@ -108,3 +108,13 @@ Pet 再从已授权账户读取订单，要求回执目标一致后才发货。�
 购买响应丢失、远端成功后本地失败、重载恢复、永久物品与耗材幂等，及真实 SDK 的
 游戏结算余额购买 Pet 物品。编译、完整 Pet owner checks 和包检查分别报告。
 原生 App 行为与生产迁移须有单独证据；不得以测试内存文档冒充真实存档验收。
+
+## 实验 SDK 输入
+
+精确依赖提交与产物 SHA-256 见
+[依赖来源记录](../.development/economy-dependencies.json)。Host 的便携 SDK 按
+[精确源码构建说明](https://github.com/cordisx/cordisx/blob/1d2636adbe239550fd70e3e82d4b43681a800833/.agents/docs/sdk-source-packaging.md)
+生成；在对应 Host checkout 直接运行 `node scripts/prepare-sdk.mjs` 并传入一个
+尚不存在的绝对输出目录，无需先安装 Host 依赖。消费者正常执行 `npm ci`，不使用
+`--ignore-scripts` 掩盖缺失的运行时依赖。Linux CI 先校验受版本控制的 tarball 哈希，
+再安装并运行 Pet 完整检查；它不替代 Host owner gate 或原生 App 验收。
