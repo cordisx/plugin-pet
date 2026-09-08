@@ -28,13 +28,13 @@ test('shop renders real avatar definitions and unavailable income without offeri
   assert.match(html, /data-avatar-preset="cat"/)
   assert.match(html, /data-avatar-preset="dog"/)
   assert.match(html, /data-avatar-preset="rabbit"/)
-  assert.match(html, /使用奖励暂不可用/)
+  assert.doesNotMatch(html, /使用奖励暂不可用|允许读取本机 Token/)
   assert.match(html, /相伴解锁 0\/6/)
   assert.match(html, /宠物币不足/)
   assert.doesNotMatch(html, /充值|领取宠物币|测试余额/)
 })
 test('wallet distinguishes permission denial from connected partial coverage', () => {
-  const denied = render('shop', createPetState(), false, { status: 'unavailable', reason: 'permission-denied' })
+  const denied = render('ledger', createPetState(), false, { status: 'unavailable', reason: 'permission-denied' })
   assert.match(denied, /允许读取本机 Token 使用量/)
   const ready = render('ledger', createPetState(), false, { status: 'ready', coverage: 'partial', observedThrough: 1000, eligibleTokens: 100000 })
   assert.match(ready, /不包含全部历史或其他设备/)
@@ -45,7 +45,8 @@ test('overview keeps care forms in a secondary page and bag shows owned inventor
   const state = createPetState()
   const navigation = {session:{selectedPet:'pet:cat', filter:'all',hideOwned:false},open:()=>{}}
   assert.doesNotMatch(render('pets'), /for="name-pet:cat"/)
-  assert.match(render('pets'), /查看档案/)
+  assert.match(render('pets'), /aria-label="查看猫猫详情"/)
+  assert.doesNotMatch(render('pets'), /查看档案/)
   assert.match(render('pet-detail',state,false,undefined,navigation), /for="name-pet:cat"/)
   assert.match(render('pet-detail',state,false,undefined,navigation), /设为主宠/)
   assert.doesNotMatch(render('bag'), /奶咖 · 未解锁/)
@@ -63,7 +64,7 @@ test('shop filters persist and hide already owned products', () => {
 test('busy state disables every mutating button and settings selector', () => {
   for (const section of ['shop', 'pets', 'bag', 'settings']) {
     const html = render(section, createPetState(), true).replace(/<div class="pet-toolbar">[\s\S]*?<\/nav>[\s\S]*?<\/div>/, "")
-    for (const tag of html.matchAll(/<button\b[^>]*>/g)) if (!tag[0].includes('pet-card-open') && !tag[0].includes('pet-tile') && !tag[0].includes('pet-album-portrait')) assert.match(tag[0], /disabled=""/, `${section}: ${tag[0]}`)
+    for (const tag of html.matchAll(/<button\b[^>]*>/g)) if (!tag[0].includes('pet-card-open') && !tag[0].includes('pet-tile') && !tag[0].includes('pet-album-portrait') && !tag[0].includes('pet-album-selected-name')) assert.match(tag[0], /disabled=""/, `${section}: ${tag[0]}`)
     if (section === 'settings') for (const tag of html.matchAll(/<select\b[^>]*>/g)) assert.match(tag[0], /disabled=""/)
   }
 })

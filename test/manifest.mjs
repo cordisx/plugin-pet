@@ -35,7 +35,7 @@ test('activation registers lazy visuals after loading; hiding and disposal resto
   assert.equal(routes.length, 8)
   assert.ok([...pages, ...routes].every(item => item.title?.fallback && item.description?.fallback))
   assert.equal(navigation.filter(item => item.tabs?.length).length, 0)
-  assert.equal(navigation.filter(item => item.parentRoute).length, 7)
+  assert.equal(navigation.filter(item => item.parentRoute).length, 5)
   assert.deepEqual(registered.map(item => item.declaration.pointId), ['composer.primary-action.visual', 'composer.frame.overlay'])
   assert.ok(registered.every(item => typeof item.load === 'function'))
   assert.ok(registered.every(item => item.declaration.events?.includes('pointer.observe')))

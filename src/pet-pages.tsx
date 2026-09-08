@@ -1,5 +1,5 @@
 import { careWarning, initialPetCare, petWeightLabel } from './pet-care.js'
-import { useEffect, useRef, useMemo, useState, useSyncExternalStore } from 'cordisx/react'
+import { useEffect, useLayoutEffect, useRef, useMemo, useState, useSyncExternalStore } from 'cordisx/react'
 import { Avatar } from '@oneworks/avatar-react'
 import { Button, Card, EmptyState, Select, Stack, Text } from 'cordisx/ui'
 import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct } from './pet-catalog.js'
@@ -84,7 +84,6 @@ function Shop(props: Commands) {
   const [hideOwned, setHideOwned] = useState(navigation?.session.hideOwned ?? false)
   const products = PET_CATALOG.filter(item => (filter === 'all' || item.kind === filter) && (!hideOwned || !ownedProduct(state, item)))
   return <Stack gap="medium" style={{ height: '100%', minHeight: 0 }}>
-    {usage?.status !== 'ready' && <Text tone="muted">{usage?.status === 'initializing' ? '正在同步使用奖励…' : usage?.status === 'unavailable' && usage.reason === 'permission-denied' ? '允许读取本机 Token 使用量后，即可积累宠物币。' : '使用奖励暂不可用，恢复后继续同步。'}</Text>}
     <Stack direction="row" gap="small" wrap align="center"><div className="pet-filters" role="group" aria-label="商品类型">{[['all','全部'],['pet','宠物'],['skin','皮肤'],['food','食物'],['item','道具']].map(([id,label]) => <Button key={id} disabled={busy} aria-pressed={filter === id} variant={filter === id ? 'primary' : 'ghost'} onClick={() => { setFilter(id!); if (navigation) navigation.session.filter = id! }}>{label}</Button>)}</div>
       <label className="pet-check"><input type="checkbox" checked={hideOwned} disabled={busy} onChange={event => { setHideOwned(event.target.checked); if (navigation) navigation.session.hideOwned = event.target.checked }} />隐藏已拥有</label>
     </Stack>
@@ -176,7 +175,7 @@ function Pets(props: Commands) {
   const warning = alive ? careWarning(entity.care) : entity.status === 'dead' ? '已逝去' : '已安葬'
   return <div className="pet-album" data-reduced-motion={state.settings.reducedMotion}>
     <div ref={gallery} className="pet-album-gallery" role="group" aria-label="选择宠物">{state.pets.map((pet,index) => <button type="button" className="pet-album-portrait" key={pet.id} aria-pressed={entity.id === pet.id} onClick={() => { setSelected(pet.id); setFeeding(false); if (navigation) navigation.session.selectedPet = pet.id }}><AlbumPortrait entity={pet} main={pet.id === state.mainPetId} /><span className="pet-album-number" aria-hidden="true">{String(index + 1).padStart(2,'0')}</span>{pet.id === state.mainPetId && <span className="pet-album-main">★ 主宠</span>}<span className="pet-album-name">{pet.name}</span>{pet.status !== 'alive' && <span className="pet-album-status">{pet.status === 'dead' ? '已逝去' : '已安葬'}</span>}</button>)}</div>
-    <section className="pet-album-care" aria-label="选中宠物"><div className="pet-album-summary"><strong className="pet-album-selected-name">{entity.name}</strong><span className="pet-album-stat" title="亲密度" aria-label={`亲密度 ${entity.affinity}`}><Glyph kind="heart" /> {entity.affinity}</span><span className="pet-album-stat" title="饱食度" aria-label={`饱食度 ${Math.round(entity.care.fullness)}`}><Glyph kind="food" /> {Math.round(entity.care.fullness)}</span><Button variant="ghost" disabled={busy} onClick={() => { if (navigation) { navigation.session.selectedPet = entity.id; navigation.open('pet-detail') } }}>查看档案 <Glyph kind="arrow" /></Button></div>
+    <section className="pet-album-care" aria-label="选中宠物"><div className="pet-album-summary"><button type="button" className="pet-album-selected-name" aria-label={`查看${entity.name}详情`} onClick={() => { if (navigation) { navigation.session.selectedPet = entity.id; navigation.open('pet-detail') } }}>{entity.name}</button><span className="pet-album-stat" title="亲密度" aria-label={`亲密度 ${entity.affinity}`}><Glyph kind="heart" /> {entity.affinity}</span><span className="pet-album-stat" title="饱食度" aria-label={`饱食度 ${Math.round(entity.care.fullness)}`}><Glyph kind="food" /> {Math.round(entity.care.fullness)}</span></div>
       {warning !== '状态良好' && <Text tone={alive ? 'muted' : 'danger'}>{warning}</Text>}
       <div className="pet-album-actions"><Button variant={feeding ? 'primary' : 'secondary'} disabled={busy || !alive} aria-expanded={feeding} onClick={() => setFeeding(!feeding)}><Glyph kind="food" /> 喂食</Button><Button variant="ghost" disabled={busy || !alive} onClick={() => { if (navigation) { navigation.session.selectedPet = entity.id; navigation.session.product = entity.skinId; navigation.open('bag') } }}><Glyph kind="outfit" /> 装扮</Button><Button variant="ghost" disabled={busy || !alive || !active} title={active ? '休息恢复精力' : '出场后可以休息'} onClick={() => props.sleep?.(entity.id)}><Glyph kind="moon" /> 休息</Button></div>
       {feeding && <FeedingTray key={entity.id} {...props} entity={entity} />}
@@ -243,7 +242,25 @@ function PetToolbar({ section, state, navigation }: { section: PetPageSection; s
   const active = section === 'product-detail' ? 'shop' : section === 'bag-detail' ? 'bag' : section === 'pet-detail' ? 'pets' : section
   return <div className="pet-toolbar"><nav aria-label="宠物页面">{([['pets','伙伴'],['shop','商店'],['bag','背包']] as const).map(([id,label]) => <Button key={id} variant={active === id ? 'primary' : 'ghost'} aria-current={active === id ? 'page' : undefined} onClick={() => navigation?.open(id)}>{id === 'pets' ? <Glyph kind="paw" /> : id === 'shop' ? <Glyph kind="shop" /> : <Glyph kind="bag" />}{label}</Button>)}</nav><Button variant="ghost" title="宠物币 · 查看钱包" aria-label={`宠物币 ${state.wallet.balance.toLocaleString()}，查看钱包`} onClick={() => navigation?.open('ledger')}><Glyph kind="coin" /> {state.wallet.balance.toLocaleString()}</Button><Button variant="ghost" aria-label="宠物设置" title="宠物设置" onClick={() => navigation?.open('settings')}><Glyph kind="settings" /></Button></div>
 }
-export function PetPage({ client, section, navigation }: { client: PetClient; section: PetPageSection; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
+export function PetPage({ client, section: initialSection, navigation: routeNavigation }: { client: PetClient; section: PetPageSection; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
+  const [section, setSection] = useState(initialSection)
+  const content = useRef<HTMLDivElement>(null)
+  const scrollPositions = useRef(new Map<PetPageSection, number[]>())
+  const navigation = useMemo(() => routeNavigation && ({
+    session: routeNavigation.session,
+    open(next: PetPageSection) {
+      if (['pets', 'shop', 'bag'].includes(initialSection) && ['pets', 'shop', 'bag'].includes(next)) {
+        scrollPositions.current.set(section, [content.current?.scrollTop ?? 0, content.current?.querySelector('.pet-tile-grid')?.scrollTop ?? 0])
+        setSection(next)
+      } else routeNavigation.open(next)
+    },
+  }), [routeNavigation, initialSection, section])
+  useLayoutEffect(() => {
+    const positions = scrollPositions.current.get(section)
+    if (content.current) content.current.scrollTop = positions?.[0] ?? 0
+    const grid = content.current?.querySelector('.pet-tile-grid')
+    if (grid) grid.scrollTop = positions?.[1] ?? 0
+  }, [section])
   const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
   const [notice, setNotice] = useState<{ message: string; error?: boolean; command?: PetCommand } | null>(null)
   useEffect(() => {
@@ -290,7 +307,8 @@ export function PetPage({ client, section, navigation }: { client: PetClient; se
       .pet-album-status{position:absolute;bottom:28px;right:12px;background:#fff9ed;color:#353128;border-radius:4px;padding:4px 8px;font-size:12px}
       .pet-album-care{width:min(100%,440px);margin-inline:auto;padding-top:18px;padding-bottom:16px}
       .pet-album-summary{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-      .pet-album-selected-name{font-size:28px;line-height:1.25;letter-spacing:-.04em;margin-inline-end:8px}
+      .pet-album-selected-name{border:0;padding:0;background:none;color:inherit;font-family:inherit;font-weight:700;cursor:pointer;font-size:28px;line-height:1.25;letter-spacing:-.04em;margin-inline-end:8px}
+      .pet-album-selected-name:hover{text-decoration:underline;text-underline-offset:5px}.pet-album-selected-name:focus-visible{outline:2px solid currentColor;outline-offset:5px;border-radius:3px}
       .pet-album-stat{display:inline-flex;align-items:center;gap:8px;font-size:18px;font-variant-numeric:tabular-nums}
       .pet-album-stat .pet-glyph{width:22px;height:22px}
       .pet-album-actions{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-top:20px}
@@ -303,7 +321,7 @@ export function PetPage({ client, section, navigation }: { client: PetClient; se
       .pet-food-use{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 4px 0}
       .pet-food-effects{display:flex;flex-wrap:wrap;gap:14px;margin-top:7px;font-size:12px;opacity:.7}
       .pet-feeding-empty{display:flex;align-items:center;gap:16px;margin-top:18px}
-      @container(max-width:580px){.pet-album-gallery{gap:12px}.pet-album-portrait{flex-basis:145px;height:210px} .pet-album-gallery{--pet-main-width:min(72cqw,340px)}.pet-album-summary{gap:14px}.pet-album-selected-name{font-size:24px}.pet-album-actions{gap:10px}.pet-album-art[data-peek=bottom] .pet-album-avatar{top:-30%}}
+      @container(max-width:580px){.pet-album-gallery{gap:12px}.pet-album-portrait{flex-basis:145px;height:210px} .pet-album-gallery{--pet-main-width:min(72cqw,340px)}.pet-album-summary{gap:14px}.pet-album-selected-name{border:0;padding:0;background:none;color:inherit;font-family:inherit;font-weight:700;cursor:pointer;font-size:24px}.pet-album-actions{gap:10px}.pet-album-art[data-peek=bottom] .pet-album-avatar{top:-30%}}
       .pet-shelf{flex:1;height:100%;min-height:0;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:28px;grid-template-rows:minmax(0,1fr);align-items:stretch}
       .pet-shelf[data-wide=false]{grid-template-columns:minmax(0,1fr)}
       .pet-tile-grid{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;align-content:start;display:grid;grid-auto-rows:max-content;grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr));gap:14px;align-items:start}
@@ -342,7 +360,7 @@ export function PetPage({ client, section, navigation }: { client: PetClient; se
     <PetToolbar section={section} state={snapshot.state} navigation={navigation} />
     {snapshot.error && !notice && <Text role="alert" tone="danger">{snapshot.error}</Text>}
     {notice && <div className="pet-toast" role={notice.error ? 'alert' : 'status'}><span>{notice.error ? '!' : '✓'}</span><span>{notice.message}</span>{notice.error && notice.command && <Button variant="ghost" disabled={snapshot.busy} onClick={() => run(notice.command!)}>重试</Button>}<Button variant="ghost" aria-label="关闭提示" onClick={() => setNotice(null)}>×</Button></div>}
-    <div className="pet-content" data-section={section}>
+    <div ref={content} className="pet-content" data-section={section}>
     {section === 'shop' ? <Shop {...props} /> : section === 'pets' ? <Pets {...props} /> : section === 'bag' ? <Bag {...props} />
       : section === 'pet-detail' ? <PetDetail {...props} /> : section === 'product-detail' || section === 'bag-detail' ? <ProductDetail {...props} inventory={section === 'bag-detail'} /> : section === 'settings' ? <Settings {...props} /> : <Ledger state={snapshot.state} usage={snapshot.usage} />}
     </div>
