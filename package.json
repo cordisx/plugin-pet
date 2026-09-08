@@ -34,10 +34,10 @@
     "prepack": "npm run build"
   },
   "devDependencies": {
-    "@cordisx/protocol": "file:.development/dependencies/cordisx-protocol-8adc1aa.tgz",
+    "@cordisx/protocol": "file:.development/dependencies/cordisx-protocol-465c444.tgz",
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/schemastery": "3.18.1",
-    "cordisx": "file:.development/dependencies/cordisx-4fb6043.tgz",
+    "cordisx": "file:.development/dependencies/cordisx-5101d6e.tgz",
     "esbuild": "0.28.2",
     "typescript": "^5.9.2",
     "vite": "8.2.2"
@@ -46,7 +46,7 @@
     "node": ">=24.14"
   },
   "dependencies": {
-    "@cordisx/economy": "file:.development/dependencies/cordisx-economy-80aa91c.tgz",
+    "@cordisx/economy": "file:.development/dependencies/cordisx-economy-5d688fc.tgz",
     "@oneworks/avatar": "1.0.0-rc.9",
     "@oneworks/avatar-react": "file:.development/dependencies/avatar-react-a06ba84-rc9.tgz"
   },

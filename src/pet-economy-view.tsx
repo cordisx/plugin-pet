@@ -3,8 +3,11 @@ import { petVisibleBalance } from './pet-balance.js'
 import type { PetState } from './pet-domain.js'
 import type { PetEconomyStatus } from './pet-economy.js'
 import type { PetUsageStatus } from './pet-usage.js'
+import type { WorkRewardStatus } from './pet-work-rewards.js'
 
-export function PetWallet({ state, economy, usage, migrate, refresh, connect, busy }: {
+export function PetWallet({ state, economy, usage, migrate, refresh, connect, busy, workRewards, connectSponsor }: {
+  workRewards?: WorkRewardStatus
+  connectSponsor?: () => void
   state: PetState
   economy?: PetEconomyStatus
   usage?: PetUsageStatus
@@ -50,10 +53,15 @@ export function PetWallet({ state, economy, usage, migrate, refresh, connect, bu
       {(state.economy || economy?.binding) && (
         <Button variant='ghost' disabled={busy} onClick={refresh}>同步钱包与恢复事务</Button>
       )}
+      {connectSponsor && <Button disabled={busy} onClick={connectSponsor}>授权工作奖励赞助服务</Button>}
+      <Text tone='muted'>{workRewards?.reason ?? '工作奖励未配置赞助连接；期间用量不补发'}</Text>
+      {workRewards?.earned !== undefined && <Text tone='muted'>共享工作奖励累计 {workRewards.earned} 币</Text>}
       <Text tone='muted'>
-        {usage?.status === 'unavailable' && usage.reason === 'permission-denied'
+        {usage?.status === 'ready'
+          ? '仅统计可归因的正常根任务工作；游戏、分叉、子任务和未知来源不计入。'
+          : usage?.status === 'unavailable' && usage.reason === 'permission-denied'
           ? '使用奖励未开启。可在插件权限中管理。'
-          : '当前使用量无法区分游戏推理，使用奖励暂停；这段用量不会补发。已有物品、正常游戏结算与钱包消费继续可用。'}
+          : '有效工作用量暂不可用；恢复后建立新基线，不补发期间用量。'}
       </Text>
     </Stack>
   )

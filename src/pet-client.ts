@@ -7,11 +7,15 @@ import { isPetPurchase, type PetEconomyBinding, petEconomyLocked } from './pet-e
 import { PetEconomy, type PetEconomyStatus } from './pet-economy.js'
 import { type PetStorageAdapter, PetStore } from './pet-store.js'
 import { PetUsageController, type PetUsageStatus } from './pet-usage.js'
+import { type RewardIdentity, workRewardStorage } from './pet-work-reward-state.js'
+import { PetWorkRewards, type WorkRewardStatus, type WorkSponsor } from './pet-work-rewards.js'
 
 export type PetClientSnapshot = {
   state: PetState | null
   error: string | null
   busy: boolean
+  workRewards?: WorkRewardStatus
+  canConnectSponsor?: boolean
   usage?: PetUsageStatus
   economy?: PetEconomyStatus
   canConnectEconomy?: boolean
@@ -47,6 +51,8 @@ export class PetClient {
   #economy: PetEconomy | undefined
   readonly #journal: PetEconomyJournal
   #disposeConnection: (() => void) | undefined
+  readonly #workRewards: PetWorkRewards
+  #rewardSourceId: string | undefined
   readonly #usage: PetUsageController | undefined
   #snapshot: PetClientSnapshot = { state: null, error: null, busy: false }
   #revision = -1
@@ -66,7 +72,14 @@ export class PetClient {
     usage?: UsageV1,
     economy?: PetEconomyConnection,
     private readonly connector?: () => Promise<PetEconomyConnection>,
+    private readonly sponsorConnector?: (identity: Omit<RewardIdentity, 'sourceId'>) => Promise<WorkSponsor>,
   ) {
+    this.#workRewards = new PetWorkRewards(workRewardStorage(documents), status => {
+      this.update({ workRewards: status })
+      if (status.status === 'ready') void this.refreshEconomy()
+    })
+    this.#snapshot.canConnectSponsor = !!sponsorConnector
+    this.#snapshot.workRewards = { status: 'unavailable', reason: '工作奖励未配置赞助连接；期间用量不补发' }
     const storage: PetStorageAdapter = {
       load: async () => {
         if (this.#closed) throw new Error('宠物服务已关闭')
@@ -126,7 +139,12 @@ export class PetClient {
         : '请在插件设置配置共享经济地址，并使用支持安全连接的 Host',
     }
     this.#usage = usage
-      ? new PetUsageController(usage, status => this.update({ usage: status }))
+      ? new PetUsageController(
+        usage,
+        status => this.update({ usage: status }),
+        (snapshot, current) => this.#workRewards.observe(snapshot, this.rewardIdentity(), current),
+        () => this.#workRewards.pause('有效工作用量暂不可用；恢复后建立新基线，不补发期间用量'),
+      )
       : undefined
     this.#snapshot.usage = usage ? { status: 'initializing' } : { status: 'unavailable', reason: 'host-unavailable' }
     this.#unsubscribe = documents.subscribe(DOCUMENT, result => {
@@ -285,6 +303,38 @@ export class PetClient {
       status => this.update({ economy: status }),
     )
   }
+  private rewardIdentity(): RewardIdentity | undefined {
+    const state = this.#snapshot.state?.economy
+    if (
+      !state || state.migration.status !== 'complete' || this.#snapshot.economy?.status !== 'ready'
+      || !this.#rewardSourceId
+    ) return undefined
+    return { baseUrl: state.baseUrl, ...state.binding, sourceId: this.#rewardSourceId }
+  }
+  connectSponsor = async (): Promise<void> => {
+    if (this.#closed || !this.sponsorConnector || this.#pending) return
+    const state = this.#snapshot.state?.economy
+    if (!state || state.migration.status !== 'complete' || this.#snapshot.economy?.status !== 'ready') {
+      this.reportError('请先连接共享钱包并完成存档迁移')
+      return
+    }
+    this.#pending++
+    this.update({ busy: true, error: null })
+    try {
+      const sponsor = await this.sponsorConnector({ baseUrl: state.baseUrl, ...state.binding })
+      if (this.#closed) {
+        sponsor.dispose()
+        return
+      }
+      this.#rewardSourceId = sponsor.identity.sourceId
+      this.#workRewards.connect(sponsor)
+      await this.refreshUsage()
+    } catch (error) {
+      this.reportError(error instanceof Error ? error.message : '工作赞助连接失败')
+    } finally {
+      this.update({ busy: --this.#pending > 0 })
+    }
+  }
   connectEconomy = async (): Promise<void> => {
     if (this.#closed || !this.connector || this.#pending) return
     this.#pending++
@@ -328,6 +378,7 @@ export class PetClient {
     if (this.#careTimer !== undefined) this.runtime.clearTimeout(this.#careTimer)
     this.#careTimer = undefined
     this.#usage?.dispose()
+    this.#workRewards.dispose()
     this.#economy?.dispose()
     this.#disposeConnection?.()
     this.#unsubscribe()

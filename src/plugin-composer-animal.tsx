@@ -1,5 +1,6 @@
 import Schema from '@deepseek-ai/schemastery'
 import { type PetEconomyConfig, petEconomyConnector } from './pet-economy-host.js'
+import { petWorkSponsorConnector } from './pet-work-sponsor.js'
 import '@oneworks/avatar-react/renderer.css'
 import type { Context } from '@deepseek-ai/cordis'
 import { CORDISX_PLUGIN_MANIFEST_SCHEMA_V11, type CordisXPluginManifestV11 } from 'cordisx/contracts'
@@ -36,6 +37,9 @@ export const Config = Schema.object({
   economyBaseUrl: Schema.string().default('').description(
     '共享经济服务地址；HTTPS 或本机回环地址。凭证由 Host 授权窗口管理。',
   ),
+  workRewardSourceId: Schema.string().default('').description(
+    '管理员预注资的工作奖励来源；使用单独的服务授权，未配置期间不补发。',
+  ),
   migrationSourceId: Schema.string().default('pet-migration-v1').description(
     '管理员提供的永久迁移来源；迁移后不能更换。',
   ),
@@ -51,7 +55,14 @@ export const inject = [
   'http',
 ]
 export function apply(ctx: Context, config: PetEconomyConfig = {}): void {
-  const client = new PetClient(ctx.documents, undefined, ctx.usage, undefined, petEconomyConnector(ctx.http, config))
+  const client = new PetClient(
+    ctx.documents,
+    undefined,
+    ctx.usage,
+    undefined,
+    petEconomyConnector(ctx.http, config),
+    petWorkSponsorConnector(ctx.http, config.workRewardSourceId),
+  )
   const navigate = installPetPages(ctx, client)
   ctx.effect(() => {
     let visuals: (() => void)[] = []

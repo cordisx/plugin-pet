@@ -1,4 +1,6 @@
+import type { UsageV2, WorkUsageSnapshotV2 } from '@cordisx/protocol/usage/v2'
 import type { UsageReadySnapshotV1, UsageSnapshotV1, UsageV1 } from 'cordisx/contracts'
+import type { WorkSnapshot } from './pet-work-rewards.js'
 export type PetUsageStatus =
   | { status: 'initializing' }
   | { status: 'unavailable'; reason: string }
@@ -16,6 +18,15 @@ function ready(value: UsageSnapshotV1): value is UsageReadySnapshotV1 {
     && value.inputTokens + value.outputTokens === value.eligibleTokens && counter(value.observedThrough)
     && counter(value.enabledAt) && value.coverage === 'partial'
 }
+export function readyWork(value: WorkUsageSnapshotV2): value is WorkSnapshot {
+  if (value.schemaVersion !== 2 || value.status !== 'ready' || value.policyId !== 'codex-local-work-input-output-v2') {
+    return false
+  }
+  const c = value.classification
+  return !!c && c.version === 'host-game-cwd-v1' && c.hostGameTasks === 'excluded'
+    && c.forksAndSubagents === 'excluded' && c.unknownSources === 'excluded'
+    && ready({ ...value, schemaVersion: 1, policyId: 'codex-local-input-output-v1' })
+}
 /** Public invalidations are hints. Serialize reads and fence every async stage so a
  * superseding permission change cannot publish stale attribution status. */
 export class PetUsageController {
@@ -26,8 +37,10 @@ export class PetUsageController {
   #running: Promise<void> | undefined
   #unsubscribe: (() => void) | undefined
   constructor(
-    private readonly usage: UsageV1,
+    private readonly usage: UsageV1 | UsageV2,
     private readonly publish: (status: PetUsageStatus) => void,
+    private readonly reward?: (snapshot: WorkSnapshot, current: () => boolean) => Promise<void>,
+    private readonly pause?: () => void,
   ) {}
   async start(): Promise<void> {
     if (this.#closed || this.#started) return
@@ -60,13 +73,28 @@ export class PetUsageController {
       const generation = this.#generation
       const current = () => !this.#closed && generation === this.#generation
       try {
-        const snapshot = await this.usage.read()
+        const v2 = 'readWork' in this.usage && typeof this.usage.readWork === 'function'
+        const snapshot = v2 ? await (this.usage as UsageV2).readWork() : await this.usage.read()
         if (!current()) continue
         if (snapshot.status === 'unavailable') {
+          this.pause?.()
           this.publish({ status: 'unavailable', reason: snapshot.reason })
           continue
         }
-        if (!ready(snapshot)) {
+        if (v2 && readyWork(snapshot as WorkUsageSnapshotV2)) {
+          await this.reward?.(snapshot as WorkSnapshot, current)
+          if (current()) {
+            this.publish({
+              status: 'ready',
+              coverage: 'partial',
+              observedThrough: snapshot.observedThrough,
+              eligibleTokens: snapshot.eligibleTokens,
+            })
+          }
+          continue
+        }
+        this.pause?.()
+        if (v2 || !ready(snapshot as UsageSnapshotV1)) {
           this.publish({ status: 'unavailable', reason: 'invalid-snapshot' })
           continue
         }
@@ -74,7 +102,10 @@ export class PetUsageController {
         // Do not persist a frontier or a deferred reward: neither is trusted evidence.
         this.publish({ status: 'unavailable', reason: 'usage-attribution-unavailable' })
       } catch {
-        if (current()) this.publish({ status: 'unavailable', reason: 'host-unavailable' })
+        if (current()) {
+          this.pause?.()
+          this.publish({ status: 'unavailable', reason: 'host-unavailable' })
+        }
       }
     }
   }

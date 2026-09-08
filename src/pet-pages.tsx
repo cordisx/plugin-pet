@@ -1,3 +1,4 @@
+import type { WorkRewardStatus } from './pet-work-rewards.js'
 import { PetWallet } from './pet-economy-view.js'
 import { petCanAfford, petVisibleBalance } from './pet-balance.js'
 import type { PetEconomyStatus } from './pet-economy.js'
@@ -353,10 +354,10 @@ function Settings({ state, busy, run }: Commands) {
     <Text tone="muted">减少动态效果会停用滚动、跳跃和大幅形变。离线时暂停饱食度、精力和健康变化；在线长期饥饿可能导致死亡。</Text>
   </Stack>
 }
-function Ledger({ state, usage, economy, migrate, refresh, connect }: { state: PetState; usage?: PetUsageStatus; economy?: PetEconomyStatus; migrate?: () => void; refresh?: () => void; connect?: () => void; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
+function Ledger({ state, usage, economy, migrate, refresh, connect, workRewards, connectSponsor }: { workRewards?: WorkRewardStatus; connectSponsor?: () => void; state: PetState; usage?: PetUsageStatus; economy?: PetEconomyStatus; migrate?: () => void; refresh?: () => void; connect?: () => void; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
   const records = state.receipts.filter(item => ['adopt', 'buy', 'claim', 'feed', 'water', 'forage', 'usage', 'usage-baseline', 'bury', 'revive', 'device-upgrade'].includes(item.kind)).slice().reverse()
   return <Stack gap="large">
-    <PetWallet state={state} usage={usage} economy={economy} migrate={migrate} refresh={refresh} connect={connect} />
+    <PetWallet workRewards={workRewards} connectSponsor={connectSponsor} state={state} usage={usage} economy={economy} migrate={migrate} refresh={refresh} connect={connect} />
     <Text tone="muted">{state.economy ? '旧钱包历史 · ' : ''}累计获得 {state.wallet.earned} · 累计花费 {state.wallet.spent}</Text>
     {!records.length ? <EmptyState title="还没有收支记录" description="购买、喂食和相伴解锁会记录在这里。" /> : records.map(item => <Stack key={item.key} direction="row" justify="space-between" gap="medium">
       <Stack gap="small"><Text>{item.detail}</Text><Text tone="muted">{new Date(item.at).toLocaleString()}</Text></Stack>
@@ -401,7 +402,7 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
     void client.execute(command).then(() => { const error = client.getSnapshot().error; setNotice(error ? { message: error, error: true, command } : { message: command.type === 'water' ? '喝过水啦' : command.type === 'interact' ? '陪伴已回应' : command.type === 'feed' ? '喂食成功' : command.type === 'equip' ? '已换上新装扮' : command.type === 'buy' || command.type === 'claim' ? '已放入背包或宠物列表' : '已保存' }) }).catch(error => setNotice({ message: error instanceof Error ? error.message : '操作失败，请重试', error: true, command }))
   }
   if (!snapshot.state) return <EmptyState title={snapshot.error ? '暂时无法读取宠物' : '正在准备宠物…'} description={snapshot.error ?? undefined} />
-  const props = { state: snapshot.state, busy: snapshot.busy || petEconomyLocked(snapshot.state), usage: snapshot.usage, economy: snapshot.economy, migrate: client.migrateEconomy, refresh: client.refreshEconomy, connect: snapshot.canConnectEconomy ? client.connectEconomy : undefined, run, navigation, sleep: client.requestSleep, wake: client.requestWake, restingPetIds: snapshot.restingPetIds }
+  const props = { workRewards: snapshot.workRewards, connectSponsor: snapshot.canConnectSponsor ? client.connectSponsor : undefined, state: snapshot.state, busy: snapshot.busy || petEconomyLocked(snapshot.state), usage: snapshot.usage, economy: snapshot.economy, migrate: client.migrateEconomy, refresh: client.refreshEconomy, connect: snapshot.canConnectEconomy ? client.connectEconomy : undefined, run, navigation, sleep: client.requestSleep, wake: client.requestWake, restingPetIds: snapshot.restingPetIds }
   return <Stack fill gap="medium" className="pet-page-layout" aria-busy={snapshot.busy}>
     <style>{`
       .pet-page-layout{position:relative;isolation:isolate}

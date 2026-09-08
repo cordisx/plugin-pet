@@ -2,7 +2,7 @@ import { EconomyClient, type Transport } from '@cordisx/economy/client'
 import type { HttpClientV1, HttpConnectionV1, HttpRequestV1 } from '@cordisx/protocol/plugin-http/v1'
 import type { PetEconomyConnection } from './pet-client.js'
 
-export type PetEconomyConfig = { economyBaseUrl?: string; migrationSourceId?: string }
+export type PetEconomyConfig = { economyBaseUrl?: string; migrationSourceId?: string; workRewardSourceId?: string }
 export function petHostTransport(http: HttpClientV1, connection: HttpConnectionV1, lifetime: AbortSignal): Transport {
   return async request => {
     const url = new URL(request.url)

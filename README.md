@@ -15,7 +15,7 @@ A small pet system living on Composer, with 32 native OneWorks Avatar characters
 
 Open Pet from a companion's context menu or the settings navigation. Use food, water and owned outfits directly from the selected pet's care panel. Skins unlock once and can be equipped independently on compatible companions. Consumables support quantity purchases; species unlocks and companion adoption are separate transactions.
 
-Pet can bind an economy instance and account shared with games. Purchases use durable server receipts and recoverable local delivery. Existing saves are backed up before a controlled one-time import; local balances are not trusted cloud assets. Profile usage rewards are paused because aggregate counters cannot exclude game inference, and no deferred rewards accrue. See [shared economy and migration](docs/shared-economy.md) and the [pet system guide](docs/pet-system.md).
+Pet can bind an economy instance and account shared with games. Purchases use durable server receipts and recoverable local delivery. Existing saves are backed up before a controlled one-time import; local balances are not trusted cloud assets. Future attributed v2 root work keeps the original 10,000-token reward rate through a separately authorized, prefunded and capped sponsor source. Profile aggregates and unavailable periods never accrue deferred rewards. See [shared economy and migration](docs/shared-economy.md) and the [pet system guide](docs/pet-system.md).
 
 ## Development
 

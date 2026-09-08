@@ -5,31 +5,31 @@
     {
       "package": "cordisx",
       "repository": "https://github.com/cordisx/cordisx",
-      "sourceCommit": "4fb60431564931441927c474dd35188f6596274b",
-      "artifact": "dependencies/cordisx-4fb6043.tgz",
-      "sha256": "3cdbeb591c7087b6262a13a84ffd994f6435dc164b74342d1cebf5a4a1aeb560",
-      "sourceStatus": "experimental pushed provider branch; clean source archive build; public HTTP implemented"
+      "sourceCommit": "5101d6ec25409a65d939fb4214b4144a5eb672df",
+      "artifact": "dependencies/cordisx-5101d6e.tgz",
+      "sha256": "638477682bf0de2ce2ba5c1b6f793ffbc46b4e238324b17ba39fcb28e8164dc2",
+      "sourceStatus": "experimental pushed provider branch; exact source-built artifact"
     },
     {
       "package": "@cordisx/protocol",
       "repository": "https://github.com/cordisx/cordisx-protocol",
-      "sourceCommit": "8adc1aab908263e692bd56ca6165b9aeadabe4b9",
-      "artifact": "dependencies/cordisx-protocol-8adc1aa.tgz",
-      "sha256": "2dd87652c4e17c4a0d0970538d6113d0dd02a22c2732a87f7b559e7edaca5884",
-      "sourceStatus": "experimental pushed provider branch"
+      "sourceCommit": "465c444c65eec1be8e337b94c2cf658ed536f49c",
+      "artifact": "dependencies/cordisx-protocol-465c444.tgz",
+      "sha256": "9576e28592b44c589aa847f3e57c02db1731a664c5cfa5a0f1fd5c4b5a3e21c8",
+      "sourceStatus": "experimental pushed provider branch; exact source-built artifact"
     },
     {
       "package": "@cordisx/economy",
       "repository": "https://github.com/cordisx/plugin-economy",
-      "sourceCommit": "80aa91c6168126ac2b164446cd365d2f7c6249a2",
-      "artifact": "dependencies/cordisx-economy-80aa91c.tgz",
-      "sha256": "d96fe4463aa25758b98495dc36e6002ced5fbfd0a63d5143c4b3bf79d292d99f",
-      "sourceStatus": "experimental pushed provider branch"
+      "sourceCommit": "5d688fc087f6dcad7a0ace5f90f328270078aa96",
+      "artifact": "dependencies/cordisx-economy-5d688fc.tgz",
+      "sha256": "2b932509322256e9296cf3dd1a19a9b3974d091c09f59e49604072236cbb206b",
+      "sourceStatus": "experimental pushed provider branch; exact source-built artifact"
     }
   ],
   "rebuild": {
     "economy": "checkout exact sourceCommit; npm ci --ignore-scripts; npm run build; npm pack --ignore-scripts",
-    "hostAndProtocol": "Host source 4fb6043 clean archive npm ci and full workspace build; protocol 8adc1aa full check/distribution reported by provider. Artifacts are immutable source-built inputs, not a registry publication."
+    "hostAndProtocol": "Host 5101d6e provider full build/typecheck + 34 focused tests; Protocol 465c444 full check/distribution. Artifacts are immutable inputs, not registry publication."
   },
   "runtimeLimitation": "Public Host HTTP implementation is included. Native App/Keychain interaction was not exercised; generation reload requires reauthorization. Provider full owner gate is separate from the complete Pet check."
 }
