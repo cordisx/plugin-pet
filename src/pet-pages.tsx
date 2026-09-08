@@ -87,7 +87,7 @@ function Shop(props: Commands) {
     <Stack direction="row" gap="small" wrap align="center"><div className="pet-filters" role="group" aria-label="商品类型">{[['all','全部'],['pet','宠物'],['skin','皮肤'],['food','食物'],['item','道具']].map(([id,label]) => <Button key={id} disabled={busy} aria-pressed={filter === id} variant={filter === id ? 'primary' : 'ghost'} onClick={() => { setFilter(id!); if (navigation) navigation.session.filter = id! }}>{label}</Button>)}</div>
       <label className="pet-check"><input type="checkbox" checked={hideOwned} disabled={busy} onChange={event => { setHideOwned(event.target.checked); if (navigation) navigation.session.hideOwned = event.target.checked }} />隐藏已拥有</label>
     </Stack>
-    <div ref={shelf.ref} className="pet-shelf" data-wide={shelf.wide} data-reduced-motion={state.settings.reducedMotion}><div className="pet-tile-grid">{products.map(item => <button type="button" key={item.id} className="pet-tile" aria-pressed={selected === item.id} data-pet-anchor={item.id} onClick={() => { setSelected(item.id); if (navigation) { navigation.session.product = item.id; navigation.session.anchor = item.id; if (!shelf.wide) navigation.open('product-detail') } }}><ProductPreview item={item} peek /><span className="pet-tile-copy"><strong>{item.name}</strong><span className="pet-badge">{ownedProduct(state,item) ? state.pets.some(pet => pet.skinId === item.id) ? '已装备' : '已拥有' : item.price === 0 ? '免费' : `${item.price.toLocaleString()} 宠物币`}</span></span></button>)}</div>
+    <div ref={shelf.ref} className="pet-shelf" data-wide={shelf.wide} data-reduced-motion={state.settings.reducedMotion}><div className="pet-tile-grid">{products.map(item => <button type="button" key={item.id} className="pet-tile" data-kind={item.kind} aria-pressed={selected === item.id} data-pet-anchor={item.id} onClick={() => { setSelected(item.id); if (navigation) { navigation.session.product = item.id; navigation.session.anchor = item.id; if (!shelf.wide) navigation.open('product-detail') } }}><ProductPreview item={item} peek /><span className="pet-tile-copy"><strong>{item.name}</strong><span className="pet-badge">{ownedProduct(state,item) ? state.pets.some(pet => pet.skinId === item.id) ? '已装备' : '已拥有' : item.price === 0 ? '免费' : `${item.price.toLocaleString()} 宠物币`}</span></span></button>)}</div>
       {shelf.wide && <aside className="pet-inspector" aria-label="选中商品详情">{products.some(item => item.id === selected) ? <ProductDetail key={selected} {...props} productId={selected} /> : <EmptyState title="挑一件喜欢的" description="选择左侧商品，查看外观与解锁方式。" />}</aside>}
     </div>
     {!products.length && <EmptyState title="没有符合条件的商品" description="试试其他分类，或显示已拥有的商品。" />}
@@ -96,7 +96,7 @@ function Shop(props: Commands) {
 function CareStats({ entity }: { entity: PetEntity }) {
   return <Stack gap="small">
     <Text>{entity.status === 'dead' ? '已逝去' : entity.status === 'buried' ? '已安葬' : careWarning(entity.care)}</Text>
-    {(['fullness', 'energy', 'health'] as const).map((key, index) => <label className="pet-care-stat" key={key}>
+    {(['fullness', 'energy', 'health'] as const).map((key, index) => <label className="pet-care-stat" data-stat={key} key={key}>
       <span className="pet-care-stat-label"><span><Glyph kind={(['food', 'energy', 'heart'] as const)[index]!} /> {['饱食度', '精力', '健康'][index]}</span><span>{Math.round(entity.care[key])}/100</span></span>
       <meter aria-label={['饱食度', '精力', '健康'][index]} min={0} max={100} value={entity.care[key]} />
     </label>)}
@@ -110,33 +110,31 @@ function Afterlife({ entity, state, busy, run }: Commands & { entity: PetEntity 
     <Button disabled={busy || !(state.itemInventory['item-reboot-core'] > 0)} onClick={() => run({ type: 'revive', petId: entity.id })}>重启核心复活（{state.itemInventory['item-reboot-core'] ?? 0}）</Button>
   </Stack></Stack>
 }
-function PetCard({ entity, state, busy, run, sleep }: Commands & { entity: PetEntity }) {
+function PetCard(props: Commands & { entity: PetEntity }) {
+  const { entity, state, busy, run, sleep, navigation } = props
   const [name, setName] = useState(entity.name)
+  const [editing, setEditing] = useState(false)
+  const [feeding, setFeeding] = useState(false)
   const active = state.activePetIds.includes(entity.id)
   const alive = entity.status === 'alive'
-  return <Card><Stack gap="medium">
-    <Preview entity={entity} />
-    <Text><strong>{entity.name}</strong>{entity.id === state.mainPetId ? ' · 主宠' : ''}</Text>
-    <Text tone="muted">亲密度 {entity.affinity} · {petProduct(entity.skinId).name}</Text>
-    <CareStats entity={entity} />
-    {alive && <Button disabled={busy || !active} title={active ? undefined : '出场后可以让宠物睡觉'} onClick={() => sleep?.(entity.id)}><Glyph kind="energy" /> 休息一会儿</Button>}
-    <form onSubmit={event => { event.preventDefault(); run({ type: 'rename', petId: entity.id, name }) }}>
-      <Stack gap="small">
-        <label htmlFor={`name-${entity.id}`}>名字</label>
-        <Stack direction="row" gap="small" align="center">
-          <input className="pet-name-input" id={`name-${entity.id}`} value={name} maxLength={24} required disabled={busy} onChange={event => setName(event.currentTarget.value)} />
-          <Button type="submit" disabled={busy || !name.trim() || name.trim() === entity.name}>保存</Button>
-        </Stack>
-      </Stack>
-    </form>
-    <Stack direction="row" wrap gap="small">
-      <Button disabled={busy || !alive || (!active && state.activePetIds.length >= state.settings.maxActivePets)}
-        onClick={() => run({ type: 'setActive', petIds: active ? state.activePetIds.filter(id => id !== entity.id) : [...state.activePetIds, entity.id] })}>{active ? '收起' : '出场'}</Button>
-      <Button disabled={busy || !alive || entity.id === state.mainPetId} onClick={() => run({ type: 'setMain', petId: entity.id })}>设为主宠</Button>
-      <Button disabled={busy || !alive} onClick={() => run({ type: 'move', petId: entity.id, x: .5 })}>重置位置</Button>
-    </Stack>
-    {!alive && <Afterlife entity={entity} state={state} busy={busy} run={run} />}
-  </Stack></Card>
+  const definition = useMemo(() => petAppearance(entity), [entity.species, entity.skinId])
+  const tint = entity.skinId.includes('orange') ? '#ffc38c' : peekPose(entity.id).tint
+  return <div className="pet-character-layout"><div className="pet-character">
+    <div className="pet-character-portrait" style={{ background: tint }}>
+      <span className="pet-character-species">{entity.species === 'cat' ? 'CAT' : entity.species === 'dog' ? 'DOG' : 'RABBIT'}</span>
+      <Avatar definition={definition} interactive={false} autoplay={false} aria-label={`${entity.name}外观预览`} style={{ width: '100%', height: '100%' }} />
+      <span className="pet-character-sticker">{petProduct(entity.skinId).name}</span>
+    </div>
+    <div className="pet-character-info">
+      <div className="pet-character-identity"><h2>{entity.name}</h2><Button variant="ghost" aria-label="修改名字" aria-expanded={editing} onClick={() => { setName(entity.name); setEditing(!editing) }}>✎</Button>{entity.id === state.mainPetId && <span className="pet-character-main">★ 主宠</span>}</div>
+      {editing && <form onSubmit={event => { event.preventDefault(); run({ type: 'rename', petId: entity.id, name }) }}><Stack direction="row" gap="small"><label className="pet-name-label" htmlFor={`name-${entity.id}`}>名字</label><input autoFocus className="pet-name-input" id={`name-${entity.id}`} value={name} maxLength={24} required disabled={busy} onChange={event => setName(event.currentTarget.value)} /><Button type="submit" disabled={busy || !name.trim() || name.trim() === entity.name}>保存</Button><Button variant="ghost" onClick={() => setEditing(false)}>完成</Button></Stack></form>}
+      <div className="pet-character-bond"><Glyph kind="heart" /><strong>{entity.affinity}</strong><span>亲密度</span></div>
+      <CareStats entity={entity} />
+      {alive && <div className="pet-character-care"><Button variant="primary" disabled={busy} aria-expanded={feeding} onClick={() => setFeeding(!feeding)}><Glyph kind="food" /> 喂食</Button><Button variant="ghost" disabled={busy || !active} title={active ? undefined : '出场后可以休息'} onClick={() => sleep?.(entity.id)}><Glyph kind="moon" /> 休息</Button><Button variant="ghost" disabled={busy} onClick={() => { if (navigation) { navigation.session.selectedPet = entity.id; navigation.session.product = entity.skinId; navigation.open('bag') } }}><Glyph kind="outfit" /> 装扮</Button></div>}
+      <details className="pet-character-manage"><summary>更多操作</summary><Stack direction="row" wrap gap="small"><Button disabled={busy || !alive || (!active && state.activePetIds.length >= state.settings.maxActivePets)} onClick={() => run({ type: 'setActive', petIds: active ? state.activePetIds.filter(id => id !== entity.id) : [...state.activePetIds, entity.id] })}>{active ? '收起' : '出场'}</Button><Button disabled={busy || !alive || entity.id === state.mainPetId} onClick={() => run({ type: 'setMain', petId: entity.id })}>设为主宠</Button><Button disabled={busy || !alive} onClick={() => run({ type: 'move', petId: entity.id, x: .5 })}>重置位置</Button></Stack></details>
+      {!alive && <Afterlife entity={entity} state={state} busy={busy} run={run} />}
+    </div>
+  </div>{feeding && alive && <FeedingTray {...props} />}</div>
 }
 export function availableFoods(state: PetState) {
   return PET_CATALOG.filter(item => item.kind === 'food' && (state.foodInventory[item.id] ?? 0) > 0)
@@ -187,7 +185,7 @@ function Bag(props: Commands) {
   const shelf = useShelf()
   const [selected, setSelected] = useState(navigation?.session.product)
   const items = PET_CATALOG.filter(item => item.kind === 'skin' ? state.ownedSkinIds.includes(item.id) : item.kind === 'food' ? (state.foodInventory[item.id] ?? 0) > 0 : item.kind === 'item' && (state.itemInventory[item.id] ?? 0) > 0)
-  return <div ref={shelf.ref} className="pet-shelf" data-wide={shelf.wide} data-reduced-motion={state.settings.reducedMotion}><div className="pet-tile-grid">{items.map(item => <button type="button" key={item.id} className="pet-tile" aria-pressed={selected === item.id} onClick={() => { setSelected(item.id); if (navigation) { navigation.session.product = item.id; if (!shelf.wide) navigation.open('bag-detail') } }}><ProductPreview item={item} peek /><span className="pet-tile-copy"><strong>{item.name}</strong><span className="pet-badge">{item.kind === 'skin' ? state.pets.some(pet => pet.skinId === item.id) ? '已装备' : '已解锁' : `× ${item.kind === 'food' ? state.foodInventory[item.id] : state.itemInventory[item.id]}`}</span></span></button>)}{!items.length && <EmptyState title="背包还是空的" description="到商店挑选一些补给吧。" />}</div>{shelf.wide && <aside className="pet-inspector" aria-label="选中物品详情">{items.some(item => item.id === selected) ? <ProductDetail key={selected} {...props} inventory productId={selected} /> : <EmptyState title="选择一件物品" description="在这里试穿装扮，或为宠物补充能量。" />}</aside>}</div>
+  return <div ref={shelf.ref} className="pet-shelf" data-wide={shelf.wide} data-reduced-motion={state.settings.reducedMotion}><div className="pet-tile-grid">{items.map(item => <button type="button" key={item.id} className="pet-tile" data-kind={item.kind} aria-pressed={selected === item.id} onClick={() => { setSelected(item.id); if (navigation) { navigation.session.product = item.id; if (!shelf.wide) navigation.open('bag-detail') } }}><ProductPreview item={item} peek /><span className="pet-tile-copy"><strong>{item.name}</strong><span className="pet-badge">{item.kind === 'skin' ? state.pets.some(pet => pet.skinId === item.id) ? '已装备' : '已解锁' : `× ${item.kind === 'food' ? state.foodInventory[item.id] : state.itemInventory[item.id]}`}</span></span></button>)}{!items.length && <EmptyState title="背包还是空的" description="到商店挑选一些补给吧。" />}</div>{shelf.wide && <aside className="pet-inspector" aria-label="选中物品详情">{items.some(item => item.id === selected) ? <ProductDetail key={selected} {...props} inventory productId={selected} /> : <EmptyState title="选择一件物品" description="在这里试穿装扮，或为宠物补充能量。" />}</aside>}</div>
 }
 function ProductDetail(props: Commands & { inventory?: boolean; productId?: string }) {
   const { state, navigation, busy, run, inventory, productId } = props
@@ -244,6 +242,7 @@ function PetToolbar({ section, state, navigation }: { section: PetPageSection; s
 }
 export function PetPage({ client, section: initialSection, navigation: routeNavigation }: { client: PetClient; section: PetPageSection; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
   const [section, setSection] = useState(initialSection)
+  useLayoutEffect(() => setSection(initialSection), [initialSection])
   const content = useRef<HTMLDivElement>(null)
   const scrollPositions = useRef(new Map<PetPageSection, number[]>())
   const navigation = useMemo(() => routeNavigation && ({
@@ -324,13 +323,41 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       @container(max-width:580px){.pet-album-gallery{gap:12px}.pet-album-portrait{flex-basis:145px;height:210px} .pet-album-gallery{--pet-main-width:min(72cqw,340px)}.pet-album-summary{gap:14px}.pet-album-selected-name{border:0;padding:0;background:none;color:inherit;font-family:inherit;font-weight:700;cursor:pointer;font-size:24px}.pet-album-actions{gap:10px}.pet-album-art[data-peek=bottom] .pet-album-avatar{top:-30%}}
       .pet-shelf{flex:1;height:100%;min-height:0;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:28px;grid-template-rows:minmax(0,1fr);align-items:stretch}
       .pet-shelf[data-wide=false]{grid-template-columns:minmax(0,1fr)}
-      .pet-tile-grid{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;align-content:start;display:grid;grid-auto-rows:max-content;grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr));gap:14px;align-items:start}
-      .pet-tile{display:flex;flex-direction:column;width:100%;position:relative;padding:0;border:1px solid transparent;border-radius:18px;overflow:hidden;background:color-mix(in srgb,currentColor 3%,transparent);color:inherit;text-align:start;font:inherit;cursor:pointer}
-      .pet-tile[aria-pressed=true]{border-color:color-mix(in srgb,currentColor 35%,transparent)}
-      .pet-tile[aria-pressed=true]::after{content:"✓";position:absolute;right:10px;top:10px;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#fff;color:#303d38;font-size:13px}
-      .pet-tile:hover{background:color-mix(in srgb,currentColor 6%,transparent)}
-      .pet-tile:focus-visible{outline:3px solid currentColor;outline-offset:3px}
-      .pet-tile-copy{display:flex;flex-direction:column;gap:4px;padding:12px 14px 14px;font-size:.92em}
+      .pet-tile-grid{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;align-content:start;display:grid;grid-auto-rows:max-content;grid-template-columns:repeat(auto-fill,minmax(min(100%,112px),1fr));gap:22px 16px;align-items:start}
+      .pet-tile{display:flex;flex-direction:column;width:100%;min-width:0;position:relative;padding:3px;border:0;border-radius:12px;background:transparent;color:inherit;text-align:start;font:inherit;cursor:pointer}
+      .pet-tile[data-kind]>.pet-preview-stage{height:auto;aspect-ratio:1;width:100%;border-radius:16px;box-sizing:border-box;background:color-mix(in srgb,var(--pet-peek-tint,#c8cbd1) 25%,transparent);outline:2px solid transparent;outline-offset:0}
+      .pet-tile[aria-pressed=true]>.pet-preview-stage{outline-color:#ed965a;background:color-mix(in srgb,var(--pet-peek-tint,#c8cbd1) 45%,transparent)}
+      .pet-tile:hover>.pet-preview-stage{outline-color:color-mix(in srgb,currentColor 35%,transparent)}
+      .pet-tile:focus-visible{outline:2px solid #ed965a;outline-offset:3px}
+      .pet-tile-copy{display:flex;flex-direction:column;gap:5px;padding:10px 3px 0;font-size:13px;line-height:1.3}
+      .pet-tile-copy strong{font-weight:550}
+      .pet-tile-copy .pet-badge{font-size:11px}
+      .pet-tile[data-kind=food]>.pet-preview-stage,.pet-tile[data-kind=item]>.pet-preview-stage{padding:12px}
+      .pet-tile[data-kind=skin] .pet-peek .pet-page-preview{left:50%;right:auto;bottom:-16px;translate:-50% 0;transform:rotate(-8deg)}
+      .pet-character-layout{container-type:inline-size;padding:18px 4px 24px}
+      .pet-character{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:48px;align-items:center;max-width:920px;margin-inline:auto}
+      .pet-character-portrait{position:relative;aspect-ratio:0.9;min-width:0;border-radius:32px 32px 72px 32px;isolation:isolate;overflow:hidden;transform:rotate(-2deg)}
+      .pet-character-portrait>.interactive-avatar{position:absolute;inset:0;transform:rotate(2deg);pointer-events:none}
+      .pet-character-species{position:absolute;top:24px;left:24px;font-size:clamp(28px,5cqw,64px);font-weight:850;letter-spacing:-.07em;color:#342316;opacity:.16}
+      .pet-character-sticker{position:absolute;bottom:24px;left:24px;padding:8px 14px;background:#fff9ed;color:#403329;font-size:14px;font-weight:650;border-radius:3px;transform:rotate(5deg)}
+      .pet-character-info{display:flex;flex-direction:column;gap:22px;min-width:0}
+      .pet-character-identity{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+      .pet-character-identity h2{margin:0;font-size:34px;line-height:1.15;letter-spacing:-.04em}
+      .pet-character-main{font-size:11px;color:#ecaa79;border:1px solid color-mix(in srgb,#ecaa79 40%,transparent);padding:5px 9px;border-radius:20px}
+      .pet-character-bond{display:flex;align-items:center;gap:8px;color:#d990aa;font-size:16px}
+      .pet-character-bond span{font-size:12px;opacity:.75}
+      .pet-character-care{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+      .pet-character-manage{font-size:12px;color:inherit}
+      .pet-character-manage summary{cursor:pointer;opacity:.6;padding:4px 0}
+      .pet-character-manage[open] summary{margin-bottom:14px}
+      .pet-name-label{align-self:center;font-size:12px;white-space:nowrap}
+      .pet-character-info .pet-care-stat{gap:8px;padding-bottom:12px}
+      .pet-character-info .pet-care-stat-label{font-size:12px}
+      .pet-character-info .pet-care-stat meter{appearance:none;border:0;border-radius:6px;background:color-mix(in srgb,currentColor 8%,transparent);height:6px}
+      .pet-character-info .pet-care-stat meter::-webkit-meter-bar{background:color-mix(in srgb,currentColor 8%,transparent);border:0;border-radius:6px}
+      .pet-character-info .pet-care-stat meter::-webkit-meter-optimum-value{background:var(--pet-stat-color);border-radius:6px}
+      .pet-care-stat[data-stat=fullness]{--pet-stat-color:#dda66d}.pet-care-stat[data-stat=energy]{--pet-stat-color:#9ca6da}.pet-care-stat[data-stat=health]{--pet-stat-color:#8ab6a0}
+      @container(max-width:620px){.pet-character{grid-template-columns:1fr;gap:30px}.pet-character-portrait{width:min(100%,300px);justify-self:center;aspect-ratio:1.1}.pet-character-info{width:min(100%,420px);justify-self:center}}
       .pet-inspector{height:100%;min-height:0;overflow:hidden;min-width:0;padding-inline-start:24px;border-inline-start:1px solid color-mix(in srgb,currentColor 14%,transparent)}
       .pet-peek{position:relative;overflow:hidden;flex-shrink:0;height:132px;border-radius:0;background:var(--pet-peek-tint,#dce5e9)}
       .pet-peek .pet-page-preview{position:absolute;transition:translate 220ms ease;transform:rotate(var(--pet-peek-angle));transform-origin:center}
@@ -369,5 +396,5 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
 
 function PetDetail(props: Commands) {
   const entity = props.state.pets.find(pet => pet.id === props.navigation?.session.selectedPet) ?? props.state.pets[0]
-  return entity ? <Stack gap="large"><PetCard {...props} entity={entity} /><Button disabled={props.busy || entity.status !== 'alive'} onClick={() => props.navigation?.open('bag')}><Glyph kind="outfit" /> 前往背包装扮与喂食</Button></Stack> : <EmptyState title="没有找到这只宠物" />
+  return entity ? <PetCard {...props} entity={entity} /> : <EmptyState title="没有找到这只宠物" />
 }
