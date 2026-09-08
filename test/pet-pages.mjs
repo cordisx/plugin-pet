@@ -6,7 +6,7 @@ import { build } from 'esbuild'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 const require = createRequire(import.meta.url)
-const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, format: 'esm', platform: 'node', write: false, loader: { '.png': 'dataurl' }, plugins: [{
+const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, format: 'esm', platform: 'node', write: false, loader: { '.png': 'dataurl', '.svg': 'dataurl' }, plugins: [{
   name: 'host-page-test', setup(builder) {
     builder.onResolve({ filter: /^(cordisx\/react(?:\/jsx-runtime)?|react(?:\/jsx-runtime)?)$/ }, args => ({ path: pathToFileURL(require.resolve(args.path.replace('cordisx/', ''))).href, external: true }))
     builder.onResolve({ filter: /^cordisx\/ui$/ }, () => ({ path: 'ui', namespace: 'host-test' }))
@@ -16,7 +16,7 @@ const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, f
       : `import {createElement as h} from 'react'; export const Stack=({children})=>h('div',{},children); export const Icon=({name})=>h('i',{'data-icon':name}); export const Card=Stack; export const Text=({children,role})=>h('span',{role},children); export const Button=({children,...p})=>h('button',p,children); export const Select=({'aria-label':label,options,value,disabled})=>h('select',{'aria-label':label,value,disabled,onChange:()=>{}},options.map(x=>h('option',{key:x.value,value:x.value},x.label))); export const EmptyState=({title,description})=>h('div',{},title,description)`, loader: 'js' }))
   },
 }] })
-const { PetPage, peekPose, availableFoods } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)
+const { PetPage, peekPose, availableFoods, shopProducts, bagProducts, PET_SHOP_PAGE_SIZE } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)
 const stateBundle = await build({ entryPoints: ['src/pet-domain.ts'], bundle: true, format: 'esm', platform: 'node', write: false })
 const { createPetState } = await import(`data:text/javascript;base64,${Buffer.from(stateBundle.outputFiles[0].text).toString('base64')}`)
 function render(section, state = createPetState(), busy = false, usage, navigation) {
@@ -25,9 +25,9 @@ function render(section, state = createPetState(), busy = false, usage, navigati
 }
 test('shop renders real avatar definitions and unavailable income without offering a mint control', () => {
   const html = render('shop',createPetState(),false,undefined,{session:{filter:'all',hideOwned:false,product:'pet-dog'},open:()=>{}})
-  assert.match(html, /data-avatar-preset="cat"/)
-  assert.match(html, /data-avatar-preset="dog"/)
-  assert.match(html, /data-avatar-preset="rabbit"/)
+  assert.match(html, /data-snapshot-species="cat"/)
+  assert.match(html, /data-snapshot-species="dog"/)
+  assert.match(html, /data-snapshot-species="rabbit"/)
   assert.doesNotMatch(html, /使用奖励暂不可用|允许读取本机 Token/)
   assert.match(html, /相伴解锁 0\/6/)
   assert.match(html, /宠物币不足/)
@@ -49,7 +49,7 @@ test('overview keeps care forms in a secondary page and bag shows owned inventor
   assert.doesNotMatch(render('pets'), /查看档案/)
   assert.doesNotMatch(render('pet-detail',state,false,undefined,navigation), /for="name-pet:cat"/)
   assert.match(render('pet-detail',state,false,undefined,navigation), /aria-label="修改名字"/)
-  assert.match(render('pet-detail',state,false,undefined,navigation), /aria-label="更多操作" aria-haspopup="menu" aria-expanded="false"/)
+  assert.match(render('pet-detail',state,false,undefined,navigation), /role="tablist" aria-label="宠物详情"/)
   assert.doesNotMatch(render('pet-detail',state,false,undefined,navigation), /<details|<summary|role="menuitem"/)
   assert.doesNotMatch(render('bag'), /奶咖 · 未解锁/)
   assert.match(render('settings'), /aria-label="减少动态效果"/)
@@ -58,8 +58,8 @@ test('overview keeps care forms in a secondary page and bag shows owned inventor
 test('shop filters persist and hide already owned products', () => {
   const navigation = {session:{filter:'pet',hideOwned:true},open:()=>{}}
   const html = render('shop',createPetState(),false,undefined,navigation)
-  assert.doesNotMatch(html,/data-avatar-preset="cat"/)
-  assert.match(html,/data-avatar-preset="dog"/)
+  assert.doesNotMatch(html,/data-snapshot-species="cat"/)
+  assert.match(html,/data-snapshot-species="dog"/)
   assert.match(html,/aria-pressed="true"/)
 })
 
@@ -84,8 +84,8 @@ test('care pages show weight and distinguish death from a retained memorial', ()
   state.pets[0].status = 'dead'; state.pets[0].care.health = 0; state.activePetIds = []
   assert.match(render('pets', state), /已逝去/)
   assert.match(render('pet-detail', state), /体重 4.00 kg/)
-  assert.match(render('pet-detail', state), /安葬/)
-  assert.match(render('pet-detail', state), /复活图腾/)
+  assert.match(render('pet-detail', state), /已逝去/)
+  assert.match(render('pet-detail', state), /pet-detail-tab-actions/)
   state.pets[0].status = 'buried'
   assert.match(render('pets', state), /已安葬/)
   assert.match(render('settings', state), /离线时暂停/)
@@ -134,10 +134,10 @@ test('care offers immediate food selection and shows distinct states and attribu
   const detail = render('pet-detail')
   assert.match(detail,/aria-label="饮水"/)
   assert.match(detail,/aria-label="心情"/)
-  assert.match(detail,/智力/)
-  assert.match(detail,/幸运/)
-  assert.match(detail,/代谢/)
-  assert.match(detail,/吸收/)
+  assert.match(detail,/pet-detail-tab-attributes/)
+  assert.match(detail,/pet-detail-tab-actions/)
+  assert.doesNotMatch(detail,/>智力<|>幸运<|>代谢<|>吸收</)
+  assert.match(detail,/role="tabpanel" aria-labelledby="pet-detail-tab-status"/)
 })
 
 test('out-of-stock home care has one accessible purchase action instead of duplicate text controls', () => {
@@ -149,4 +149,110 @@ test('out-of-stock home care has one accessible purchase action instead of dupli
   assert.match(actions[0][2], /<svg/)
   assert.equal(actions[0][2].replace(/<svg[\s\S]*?<\/svg>/g, '').trim(), '')
   assert.doesNotMatch(html, /没有库存|去商店补给/)
+})
+
+test('large catalogs render at most eighteen shop tiles and keep pagination outside the scrolling grid', () => {
+  const state = createPetState()
+  const products = shopProducts(state, 'skin', false)
+  assert.ok(products.length > 100)
+  const nav = {session:{filter:'skin',hideOwned:false},open:()=>{}}
+  const html = render('shop', state, false, undefined, nav)
+  assert.equal([...html.matchAll(/data-pet-anchor=/g)].length, PET_SHOP_PAGE_SIZE)
+  assert.match(html, /aria-label="商品分页"/)
+  assert.match(html, /aria-label="下一页商品"/)
+  assert.match(html, /aria-label="皮肤适用物种"/)
+  assert.match(html, /全部种类/)
+  const food = render('shop',state,false,undefined,{session:{filter:'food',hideOwned:false},open:()=>{}})
+  assert.doesNotMatch(food,/aria-label="伙伴分组"|aria-label="皮肤适用物种"/)
+})
+test('species groups filter pet and skin catalogs without hiding other product categories', () => {
+  const state = createPetState()
+  const birds = shopProducts(state,'pet',false,'bird')
+  assert.ok(birds.length > 0)
+  assert.ok(birds.every(item => ['chick','duck','penguin','owl','parrot','goose'].includes(item.species)))
+  const parrotSkins = shopProducts(state,'skin',false,'bird','parrot')
+  assert.ok(parrotSkins.length > 1)
+  assert.ok(parrotSkins.every(item => item.species === 'parrot'))
+  assert.deepEqual(shopProducts(state,'food',false,'bird','parrot'),shopProducts(state,'food',false))
+  const html = render('shop',state,false,undefined,{session:{filter:'skin',hideOwned:false,group:'bird',species:'parrot'},open:()=>{}})
+  assert.match(html,/value="parrot"[^>]*>鹦鹉/)
+  assert.doesNotMatch(html,/value="cat"/)
+})
+test('precise product navigation resolves the correct page even with stale species filters', () => {
+  const state = createPetState()
+  const products = shopProducts(state,'skin',false)
+  const item = products.at(-1)
+  const html = render('shop',state,false,undefined,{session:{filter:'skin',hideOwned:false,group:'companion',species:'cat',page:0,anchor:item.id,product:item.id},open:()=>{}})
+  assert.ok(html.includes(`data-pet-anchor="${item.id}"`))
+  assert.match(html,/aria-pressed="true" data-pet-anchor=/)
+  assert.ok([...html.matchAll(/data-pet-anchor=/g)].length <= PET_SHOP_PAGE_SIZE)
+})
+
+test('bag shares category, species filters, tile presentation and pagination while exposing inventory use', () => {
+  const state = createPetState()
+  state.ownedSkinIds = shopProducts(state,'skin',false).map(item => item.id)
+  const nav = {session:{filter:'skin',hideOwned:true},open:()=>{}}
+  const html = render('bag',state,false,undefined,nav)
+  assert.match(html,/aria-label="商品类型"/)
+  assert.match(html,/aria-label="伙伴分组"/)
+  assert.match(html,/aria-label="皮肤适用物种"/)
+  assert.match(html,/class="pet-tile-grid pet-shop-grid"/)
+  assert.match(html,/aria-label="商品分页"/)
+  assert.equal([...html.matchAll(/data-pet-anchor=/g)].length,PET_SHOP_PAGE_SIZE)
+  assert.doesNotMatch(html,/隐藏已拥有|购买数量/)
+  const supplies = bagProducts(state,'food')
+  assert.deepEqual(supplies.map(item=>item.id),['food-snack'])
+  const food = render('bag',state,false,undefined,{session:{filter:'food',hideOwned:false,product:'food-snack'},open:()=>{}})
+  assert.match(food,/选择使用物品的宠物/)
+  assert.match(food,/>喂食</)
+  assert.match(food,/× 3/)
+  assert.doesNotMatch(food,/购买数量/)
+})
+test('every species group uses an icon before its text in both shop and bag', () => {
+  for (const section of ['shop','bag']) {
+    const html = render(section,createPetState(),false,undefined,{session:{filter:'pet',hideOwned:false},open:()=>{}})
+    const group = html.match(/aria-label="伙伴分组">([\s\S]*?)<\/div>/)?.[1]
+    assert.ok(group)
+    const buttons = [...group.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)]
+    assert.equal(buttons.length,7)
+    for (const [,body] of buttons) assert.match(body,/^<svg[\s\S]*?<\/svg>[^<]+$/)
+  }
+})
+
+test('unlocked species can be adopted again while bag counts individual companions', () => {
+  const state = createPetState()
+  state.wallet.balance = 100
+  state.pets.push({...structuredClone(state.pets[0]),id:'pet:cat:second',name:'另一只猫'})
+  const nav = {session:{filter:'pet',hideOwned:false,product:'pet-cat'},open:()=>{}}
+  const shop = render('shop',state,false,undefined,nav)
+  assert.match(shop,/再领养一只/)
+  const total = shop.match(/class="pet-purchase-total">([\s\S]*?)<\/div>/)?.[1]
+  assert.match(total,/再次领养/)
+  assert.match(total,/>\s*30<\/strong>/)
+  assert.doesNotMatch(shop, /<button[^>]*disabled=""[^>]*>[\s]*再领养一只/)
+  const bag = render('bag',state,false,undefined,nav)
+  assert.match(bag,/拥有 2 只/)
+  assert.match(bag,/查看伙伴/)
+  assert.doesNotMatch(bag,/再领养一只/)
+})
+
+test('shop and bag remain static including selected detail previews', () => {
+  const state = createPetState()
+  state.ownedSkinIds = shopProducts(state,'skin',false).map(item => item.id)
+  for (const section of ['shop','bag']) {
+    const nav = {session:{filter:'skin',hideOwned:false},open:()=>{}}
+    const html = render(section,state,false,undefined,nav)
+    assert.equal([...html.matchAll(/data-snapshot-species=/g)].length,PET_SHOP_PAGE_SIZE)
+    assert.doesNotMatch(html,/data-avatar-preset=/)
+    nav.session.product='skin-white';nav.session.anchor='skin-white'
+    const detail = render(section,state,false,undefined,nav)
+    assert.equal([...detail.matchAll(/data-avatar-preset=/g)].length,0)
+  }
+})
+test('multiple companions keep only the selected portrait live', () => {
+  const state=createPetState()
+  state.pets.push({...structuredClone(state.pets[0]),id:'pet:cat:2',name:'第二只'})
+  const html=render('pets',state)
+  assert.equal([...html.matchAll(/data-avatar-preset=/g)].length,1)
+  assert.equal([...html.matchAll(/data-snapshot-species=/g)].length,1)
 })

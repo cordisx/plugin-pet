@@ -45,3 +45,22 @@ test('composer placement does not inherit the gallery crop', () => {
   assert.equal(petComposerAppearance(pet),composer)
   assert.notDeepEqual(gallery.scene.view,composer.scene.view)
 })
+
+test('every catalog species and coat resolves to its declared native preset and palette', async () => {
+  const result = await build({entryPoints:['src/pet-catalog.ts'],bundle:true,write:false,format:'esm',platform:'node'})
+  const {PET_CATALOG,PET_DEFAULT_SKINS}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'))
+  const ids=new Set()
+  for(const product of PET_CATALOG) {
+    assert.ok(!ids.has(product.id),`duplicate ${product.id}`);ids.add(product.id)
+    if(product.kind !== 'skin')continue
+    const definition=parseAvatarDefinition(petAppearance(product.species,product.id))
+    assert.equal(definition.scene.entity.preset,product.species)
+    assert.equal(getAvatarPalette(product.paletteId).id,product.paletteId)
+    assert.equal(definition.scene.appearance.paletteId,product.paletteId)
+  }
+  for(const product of PET_CATALOG.filter(item=>item.kind==='pet')) {
+    const skin=PET_CATALOG.find(item=>item.id===PET_DEFAULT_SKINS[product.species])
+    assert.equal(skin.species,product.species)
+    assert.equal(skin.price,0)
+  }
+})

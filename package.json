@@ -43,6 +43,6 @@
   },
   "dependencies": {
     "@oneworks/avatar": "1.0.0-rc.8",
-    "@oneworks/avatar-react": "file:.development/dependencies/avatar-react-e77997f.tgz"
+    "@oneworks/avatar-react": "file:.development/dependencies/avatar-react-f1a366c.tgz"
   }
 }

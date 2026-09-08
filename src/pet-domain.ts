@@ -1,13 +1,14 @@
+import { PET_SPECIES_IDS, type PetSpecies } from './pet-species.js'
 import { applyPetDevices, deviceCapacity, deviceFoodCount, DEFAULT_PET_DEVICES, PET_DEVICE_IDS, PET_DEVICE_UPGRADE_COST, type PetDeviceSettings } from './pet-devices.js'
 import { initialPetAttributes, foodEffect, petSeed, type PetAttributes } from './pet-attributes.js'
 import { initialPetTraits, PET_PERSONALITIES, type PetTraits } from './pet-traits.js'
 import { advancePetCare, initialPetCare, PET_CARE, PET_BASE_WEIGHT, type PetCare, type PetLifeStatus } from './pet-care.js'
-import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct } from './pet-catalog.js'
-import type { PetSpecies } from './pet-catalog.js'
+import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct, petAdoptionPrice } from './pet-catalog.js'
 
 export type PetEntity = {
   id: string
   species: PetSpecies
+  sex: 'male' | 'female'
   name: string
   skinId: string
   affinity: number
@@ -32,6 +33,7 @@ export type PetReceipt = { key: string; kind: string; at: number; coins: number;
 export type PetState = {
   version: 1
   pets: PetEntity[]
+  unlockedSpecies: PetSpecies[]
   mainPetId: string
   activePetIds: string[]
   wallet: { balance: number; earned: number; spent: number }
@@ -50,6 +52,7 @@ export type PetState = {
 }
 export type PetCommand =
   | { type: 'buy'; productId: string; quantity?: number }
+  | { type: 'adopt'; species: PetSpecies }
   | { type: 'claim'; productId: string }
   | { type: 'equip'; petId: string; skinId: string }
   | { type: 'water'; petId: string }
@@ -73,17 +76,30 @@ export const DEFAULT_PET_SETTINGS: PetSettings = {
   visible: true, followPointer: true, clickFeedback: true, draggable: true,
   idleAnimations: true, reducedMotion: false, maxActivePets: 3,
 }
+export function initialPetSex(id: string): 'male' | 'female' { return petSeed(`sex:${id}`) % 2 === 0 ? 'male' : 'female' }
+function addPetInstance(state: PetState, species: PetSpecies): PetEntity {
+  const prefix = `pet:${species}`
+  let sequence = 1, id = prefix
+  while (state.pets.some(item => item.id === id)) { sequence++; id = `${prefix}:${sequence}` }
+  const skinId = PET_DEFAULT_SKINS[species]
+  const name = petProduct(`pet-${species}`).name
+  const entity: PetEntity = { id, species, sex: initialPetSex(id), name: sequence === 1 ? name : `${name} ${sequence}`, skinId, affinity: 0, x: .3, status: 'alive', attributes: initialPetAttributes(id), exploration: { onlineMs: 0, eventIndex: 0, events: [] }, traits: initialPetTraits(id), care: initialPetCare(species) }
+  state.pets.push(entity)
+  if (!state.ownedSkinIds.includes(skinId)) state.ownedSkinIds.push(skinId)
+  return entity
+}
 export function createPetState(): PetState {
   return {
     version: 1,
-    pets: [{ id: 'pet:cat', species: 'cat', name: '猫猫', skinId: 'skin-white', affinity: 0, x: .7, status: 'alive', attributes: initialPetAttributes('pet:cat'), exploration: { onlineMs: 0, eventIndex: 0, events: [] }, traits: initialPetTraits('pet:cat'), care: initialPetCare() }],
+    pets: [{ id: 'pet:cat', species: 'cat', sex: initialPetSex('pet:cat'), name: '猫猫', skinId: 'skin-white', affinity: 0, x: .7, status: 'alive', attributes: initialPetAttributes('pet:cat'), exploration: { onlineMs: 0, eventIndex: 0, events: [] }, traits: initialPetTraits('pet:cat'), care: initialPetCare() }],
+    unlockedSpecies: ['cat'],
     mainPetId: 'pet:cat', activePetIds: ['pet:cat'],
     wallet: { balance: 0, earned: 0, spent: 0 }, ownedSkinIds: ['skin-white', 'skin-orange'],
     foodInventory: { 'food-snack': 3 }, itemInventory: {}, devices: structuredClone(DEFAULT_PET_DEVICES), careUpdatedAt: null, careHistory: [], settings: { ...DEFAULT_PET_SETTINGS }, receipts: [], recentReceipts: [], usage: {},
   }
 }
 export const PET_RECENT_RECEIPT_LIMIT = 128
-const economicKinds = new Set(['buy', 'claim', 'feed', 'usage', 'usage-baseline', 'bury', 'revive', 'forage', 'device-water', 'device-feed', 'device-refill-water', 'device-load-food', 'device-upgrade'])
+const economicKinds = new Set(['adopt', 'buy', 'claim', 'feed', 'usage', 'usage-baseline', 'bury', 'revive', 'forage', 'device-water', 'device-feed', 'device-refill-water', 'device-load-food', 'device-upgrade'])
 const recentKinds = new Set(['equip', 'rename', 'setActive', 'setMain', 'move', 'settings', 'interact', 'water', 'carePulse', 'device-settings'])
 function record(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value) }
 function usageSource(value: string): boolean { return /^[a-zA-Z0-9:_-]{1,120}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value) }
@@ -146,6 +162,9 @@ export function migratePetState(raw: unknown): PetState {
     assert(record(item), '宠物状态无效')
     assert(typeof item.id === 'string' && item.id.length > 0 && !ids.has(item.id), '宠物身份重复或无效')
     ids.add(item.id)
+    assert(PET_SPECIES_IDS.includes(item.species), '未知宠物类型')
+    if (item.sex === undefined) item.sex = initialPetSex(item.id)
+    assert(item.sex === 'male' || item.sex === 'female', '宠物性别无效')
     if (item.status === undefined) item.status = 'alive'
     if (item.care === undefined) item.care = initialPetCare(item.species)
     if (record(item.care) && item.care.weight === undefined) item.care.weight = PET_BASE_WEIGHT[item.species]
@@ -164,14 +183,14 @@ export function migratePetState(raw: unknown): PetState {
       && Number.isFinite(item.care.weight) && item.care.weight >= PET_BASE_WEIGHT[item.species] * .65 && item.care.weight <= PET_BASE_WEIGHT[item.species] * 1.5
       && Number.isFinite(item.care.lowFullnessMs) && item.care.lowFullnessMs >= 0, '宠物照顾状态无效')
     assert(item.status === 'alive' ? item.care.health > 0 : item.care.health === 0, '宠物生命状态与健康不一致')
-    assert(['cat', 'dog', 'rabbit'].includes(item.species), '未知宠物类型')
     assert(typeof item.name === 'string' && item.name.trim().length > 0 && item.name.length <= 24, '宠物名字无效')
     assert(integer(item.affinity) && Number.isFinite(item.x) && item.x >= 0 && item.x <= 1, '宠物状态无效')
     const skin = petProduct(item.skinId)
     assert(skin.kind === 'skin' && skin.species === item.species, '宠物皮肤不兼容')
     if (item.interaction) assert(typeof item.interaction.day === 'string' && integer(item.interaction.count) && integer(item.interaction.lastAt), '互动记录无效')
   }
-  assert(new Set(state.pets.map(item => item.species)).size === state.pets.length, '宠物类型重复')
+  if (state.unlockedSpecies === undefined) state.unlockedSpecies = [...new Set(state.pets.map(item => item.species))]
+  assert(Array.isArray(state.unlockedSpecies) && new Set(state.unlockedSpecies).size === state.unlockedSpecies.length && state.unlockedSpecies.every(species => PET_SPECIES_IDS.includes(species)) && state.pets.every(item => state.unlockedSpecies.includes(item.species)), '宠物物种解锁记录无效')
   assert(ids.has(state.mainPetId), '主宠不存在')
   assert(Array.isArray(state.activePetIds) && new Set(state.activePetIds).size === state.activePetIds.length
     && state.activePetIds.every(id => state.pets.some(item => item.id === id && item.status === 'alive')) && state.activePetIds.length <= state.settings.maxActivePets, '出场列表无效')
@@ -288,14 +307,24 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       detail = `${entity.name} · 使用复活图腾复活`
       break
     }
+    case 'adopt': {
+      assert(PET_SPECIES_IDS.includes(command.species) && state.unlockedSpecies.includes(command.species), '请先解锁这个物种')
+      const cost = petAdoptionPrice(command.species)
+      assert(state.wallet.balance >= cost, '宠物币不足')
+      state.wallet.balance -= cost
+      state.wallet.spent += cost
+      coins = -cost
+      const entity = addPetInstance(state, command.species)
+      detail = `领养${entity.name}`
+      break
+    }
     case 'claim': {
       const item = petProduct(command.productId)
       assert(item.kind === 'pet' && item.species && item.requiredAffinity, '这件商品不支持相伴解锁')
-      assert(!state.pets.some(entity => entity.species === item.species), '你已拥有这只宠物')
+      assert(!state.unlockedSpecies.includes(item.species!), '你已拥有该物种的解锁资格，请选择再次领养')
       assert(state.pets.some(entity => entity.affinity >= item.requiredAffinity!), `需要一只宠物达到 ${item.requiredAffinity} 亲密度`)
-      const skinId = PET_DEFAULT_SKINS[item.species]
-      state.pets.push({ id: `pet:${item.species}`, species: item.species, name: item.name, skinId, affinity: 0, x: .3, status: 'alive', attributes: initialPetAttributes(`pet:${item.species}`), exploration: { onlineMs: 0, eventIndex: 0, events: [] }, traits: initialPetTraits(`pet:${item.species}`), care: initialPetCare(item.species) })
-      if (!state.ownedSkinIds.includes(skinId)) state.ownedSkinIds.push(skinId)
+      state.unlockedSpecies.push(item.species)
+      addPetInstance(state, item.species)
       detail = `${item.name} · 相伴解锁`
       break
     }
@@ -308,7 +337,7 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
         assert(quantity === 1, '永久设备只能购买一件')
         assert(deviceCapacity(state, item.device).tier === 0, '你已拥有这台设备')
       }
-      if (item.kind === 'pet') assert(!state.pets.some(entity => entity.species === item.species), '你已拥有这只宠物')
+      if (item.kind === 'pet') assert(!state.unlockedSpecies.includes(item.species!), '你已拥有该物种的解锁资格，请选择再次领养')
       if (item.kind === 'skin') {
         assert(!state.ownedSkinIds.includes(item.id), '你已拥有这款皮肤')
         assert(state.pets.some(entity => entity.species === item.species && entity.affinity >= (item.requiredAffinity ?? 0)), '需要先拥有适用宠物并达到亲密度要求')
@@ -319,10 +348,8 @@ export function applyPetCommand(input: PetState, command: PetCommand, transactio
       state.wallet.spent += cost
       coins = -cost
       if (item.kind === 'pet') {
-        const species = item.species!
-        const skinId = PET_DEFAULT_SKINS[species]
-        state.pets.push({ id: `pet:${species}`, species, name: item.name, skinId, affinity: 0, x: .3, status: 'alive', attributes: initialPetAttributes(`pet:${species}`), exploration: { onlineMs: 0, eventIndex: 0, events: [] }, traits: initialPetTraits(`pet:${species}`), care: initialPetCare(species) })
-        if (!state.ownedSkinIds.includes(skinId)) state.ownedSkinIds.push(skinId)
+        state.unlockedSpecies.push(item.species!)
+        addPetInstance(state, item.species!)
       } else if (item.kind === 'skin') state.ownedSkinIds.push(item.id)
       else {
         const inventory = item.kind === 'item' ? state.itemInventory : state.foodInventory

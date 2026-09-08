@@ -1,4 +1,6 @@
-export type PetSpecies = 'cat' | 'dog' | 'rabbit'
+import { petPaletteName } from './pet-palette-names.js'
+import { PET_SPECIES, PET_SPECIES_IDS, type PetSpecies } from './pet-species.js'
+export type { PetSpecies } from './pet-species.js'
 export type PetProduct = {
   id: string
   kind: 'pet' | 'skin' | 'food' | 'item'
@@ -15,7 +17,7 @@ export type PetProduct = {
 }
 /** Initial tuning, deliberately independent from a model's monetary price. */
 export const PET_ECONOMY = { tokensPerCoin: 10_000, interactionCooldownMs: 60_000, interactionDailyLimit: 10 } as const
-export const PET_CATALOG: readonly PetProduct[] = [
+const LEGACY_CATALOG: readonly PetProduct[] = [
   { id: 'pet-cat', kind: 'pet', name: '猫猫', species: 'cat', price: 0 },
   { id: 'pet-dog', kind: 'pet', name: '小狗', species: 'dog', price: 150, requiredAffinity: 6 },
   { id: 'pet-rabbit', kind: 'pet', name: '兔兔', species: 'rabbit', price: 200, requiredAffinity: 12 },
@@ -47,9 +49,30 @@ export const PET_CATALOG: readonly PetProduct[] = [
   { id: 'item-auto-feeder', kind: 'item', device: 'feeder', name: '自动喂食器', price: 180 },
   { id: 'item-reboot-core', kind: 'item', name: '复活图腾', price: 80 },
 ]
-export const PET_DEFAULT_SKINS: Record<PetSpecies, string> = { cat: 'skin-white', dog: 'skin-shiba', rabbit: 'skin-lop' }
+const extraPets: PetProduct[] = PET_SPECIES_IDS.filter(id => !LEGACY_CATALOG.some(item => item.kind === 'pet' && item.species === id)).map(id => ({
+  id: `pet-${id}`, kind: 'pet', name: PET_SPECIES[id].name, species: id,
+  price: PET_SPECIES[id].group === 'fantasy' ? 300 : PET_SPECIES[id].weight >= 50 ? 400 : PET_SPECIES[id].weight >= 10 ? 280 : 180,
+}))
+const extraSkins: PetProduct[] = PET_SPECIES_IDS.flatMap(id => PET_SPECIES[id].palettes.flatMap((paletteId, index) => {
+  if (LEGACY_CATALOG.some(item=>item.kind === 'skin' && item.species === id && item.paletteId === paletteId)) return []
+  return [{ id: `skin-${id}-${paletteId}`, kind: 'skin' as const, name: petPaletteName(paletteId), species:id, paletteId,
+    price: !LEGACY_CATALOG.some(item=>item.kind === 'pet' && item.species === id) && index === 0 ? 0 : 80 }]
+}))
+export const PET_CATALOG: readonly PetProduct[] = [
+  ...LEGACY_CATALOG.filter(item=>item.kind === 'pet'), ...extraPets,
+  ...LEGACY_CATALOG.filter(item=>item.kind === 'skin'), ...extraSkins,
+  ...LEGACY_CATALOG.filter(item=>item.kind === 'food' || item.kind === 'item'),
+]
+export const PET_DEFAULT_SKINS = Object.fromEntries(PET_SPECIES_IDS.map(id=>[
+  id, ({cat:'skin-white',dog:'skin-shiba',rabbit:'skin-lop'} as Partial<Record<PetSpecies,string>>)[id] ?? `skin-${id}-${PET_SPECIES[id].palettes[0]}`,
+])) as Record<PetSpecies,string>
 export function petProduct(id: string): PetProduct {
   const product = PET_CATALOG.find(item => item.id === id)
   if (!product) throw new Error('找不到这件商品')
   return product
+}
+
+/** Additional companions cost half the species unlock price, with a 30-coin floor. */
+export function petAdoptionPrice(species: PetSpecies): number {
+  return Math.max(30, Math.ceil(petProduct(`pet-${species}`).price / 2))
 }

@@ -29,7 +29,7 @@ SOFTWARE.
 
 ## @oneworks/avatar-react 1.0.0-rc.8
 
-This development checkout includes the native preset palette/coat fix from source commit `e77997f1a08ca84e0755d8cea57ed0f9fca891be`. It is a local candidate, not the registry rc.8 artifact. Exact source and integrity are recorded in `.development/README.md`.
+This development checkout includes the native preset palette/coat fix from source commit `f1a366cfc7ebf5c47ccbab10c9d070366f7d5936`. It is a local candidate, not the registry rc.8 artifact. Exact source and integrity are recorded in `.development/README.md`.
 
 MIT License
 
@@ -52,3 +52,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Native Avatar preview assets
+
+Pet preview images are generated from the MIT-licensed Avatar renderer and native preset definitions identified above. Source revisions, generation definitions, and per-file integrity are recorded in `src/assets/pet-preview/SOURCE.json`; the accompanying license is retained in that directory.

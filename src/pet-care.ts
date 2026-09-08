@@ -1,3 +1,4 @@
+import { PET_SPECIES, PET_SPECIES_IDS, type PetSpecies } from './pet-species.js'
 import { PET_SPECIES_METABOLISM, type PetAttributes } from './pet-attributes.js'
 import { PET_PERSONALITIES, type PetTraits } from './pet-traits.js'
 export type PetLifeStatus = 'alive' | 'dead' | 'buried'
@@ -9,7 +10,7 @@ export const PET_CARE = {
   healthLossPerHour: 4, healthRecoveryPerHour: 2, energyLossPerHour: 8, restingEnergyPerHour: 20,
   pulseLimitMs: 65_000, revivedFullness: 80, revivedEnergy: 80, revivedHealth: 80,
 } as const
-export const PET_BASE_WEIGHT = { cat: 4, dog: 8, rabbit: 2 } as const
+export const PET_BASE_WEIGHT: Record<PetSpecies, number> = Object.fromEntries(PET_SPECIES_IDS.map(species => [species, PET_SPECIES[species].weight])) as Record<PetSpecies, number>
 export function initialPetCare(species: keyof typeof PET_BASE_WEIGHT = 'cat'): PetCare {
   return { hydration: PET_CARE.initialHydration, mood: PET_CARE.initialMood, lowHydrationMs: 0, fullness: PET_CARE.initialFullness, energy: PET_CARE.initialEnergy, health: PET_CARE.initialHealth, lowFullnessMs: 0, weight: PET_BASE_WEIGHT[species] }
 }
