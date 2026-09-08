@@ -1,3 +1,4 @@
+import { validatePetEconomy, type PetEconomyState } from './pet-economy-state.js'
 import { PET_SPECIES_IDS, type PetSpecies } from './pet-species.js'
 import { applyPetDevices, deviceCapacity, deviceFoodCount, DEFAULT_PET_DEVICES, PET_DEVICE_IDS, PET_DEVICE_UPGRADE_COST, type PetDeviceSettings } from './pet-devices.js'
 import { initialPetAttributes, foodEffect, petSeed, type PetAttributes } from './pet-attributes.js'
@@ -31,7 +32,8 @@ export type PetSettings = {
 }
 export type PetReceipt = { key: string; kind: string; at: number; coins: number; detail: string }
 export type PetState = {
-  version: 1
+  version: 1 | 2
+  economy?: PetEconomyState
   pets: PetEntity[]
   unlockedSpecies: PetSpecies[]
   mainPetId: string
@@ -142,7 +144,9 @@ export function migratePetState(raw: unknown): PetState {
   if (raw == null) return createPetState()
   assert(record(raw), '宠物存档无效')
   const state = structuredClone(raw) as PetState
-  assert(state.version === 1, '宠物存档版本不兼容，请升级插件')
+  assert(state.version === 1 || state.version === 2, '宠物存档版本不兼容，请升级插件')
+  if (state.version === 2) validatePetEconomy(state.economy)
+  else assert(state.economy === undefined, '共享经济存档版本无效')
   assert(state.settings === undefined || record(state.settings), '宠物设置无效')
   state.settings = { ...DEFAULT_PET_SETTINGS, ...state.settings }
   assert(validSettings(state.settings), '宠物设置无效')
@@ -219,6 +223,10 @@ export function migratePetState(raw: unknown): PetState {
     && integer(item.totalTokens) && integer(item.rewardedCoins) && integer(item.remainderTokens)
     && item.remainderTokens < PET_ECONOMY.tokensPerCoin && (item.lastRevision === undefined || integer(item.lastRevision))), '用量结算记录无效')
   assert(Object.values(state.usage).reduce((total, item) => total + item.rewardedCoins, 0) === state.wallet.earned, '收入与用量结算记录不一致')
+  if (state.economy) {
+    assert(state.economy.migration.legacyBalance === state.wallet.balance, '迁移余额与保留的旧钱包不一致')
+    assert(state.economy.receipts.every(receipt => state.receipts.some(local => local.key === receipt.key && local.kind === receipt.command.type && local.coins === 0)), '共享履约收据与本地物品记录不一致')
+  }
   collapseUsageReceipts(state)
   return state
 }

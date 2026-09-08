@@ -1,3 +1,5 @@
+import { petCanAfford } from './pet-balance.js'
+import type { PetEconomyStatus } from './pet-economy.js'
 import { PetDeviceArt, PET_DEVICE_ART_STYLES } from './pet-device-art.js'
 import { useState } from 'cordisx/react'
 import { Button, Select } from 'cordisx/ui'
@@ -8,7 +10,7 @@ import type { PetPageNavigation } from './pet-pages.js'
 import { PetFoodArt } from './pet-food-art.js'
 
 type DeviceProps = {
-  item: PetProduct; state: PetState; busy: boolean
+  item: PetProduct; state: PetState; busy: boolean; economy?: PetEconomyStatus
   run: (command: PetCommand) => void; navigation?: PetPageNavigation
 }
 function DeviceIcon({ kind }: { kind: 'shop' | 'power' | 'fill' | 'food' | 'upgrade' }) {
@@ -23,7 +25,7 @@ function openDeviceProduct(navigation: PetPageNavigation | undefined, item: PetP
   navigation.session.hideOwned = false
   navigation.open('shop')
 }
-export function DeviceControl({ item, state, busy, run, navigation }: DeviceProps) {
+export function DeviceControl({ item, state, busy, run, navigation, economy }: DeviceProps) {
   const [foodId, setFoodId] = useState(state.devices.foodId)
   const [quantity, setQuantity] = useState(1)
   const [expanded, setExpanded] = useState(false)
@@ -50,7 +52,7 @@ export function DeviceControl({ item, state, busy, run, navigation }: DeviceProp
       : <><div className="pet-reservoir-loader"><Select aria-label="装入的食物" value={selectedFood?.id ?? ''} disabled={busy} options={foods.map(food => ({ value: food.id, label: `${food.name} · 背包 ${state.foodInventory[food.id] ?? 0}` }))} onChange={id => { setFoodId(id); setQuantity(1) }} /><input aria-label="装入份数" title={`最多可装 ${maximum} 份`} type="number" min={1} max={Math.max(1, maximum)} step={1} value={loadQuantity} disabled={busy || maximum <= 0} onChange={event => setQuantity(Math.max(1, Math.min(maximum, Math.trunc(event.currentTarget.valueAsNumber) || 1)))} /><Button variant="ghost" disabled={busy || !selectedFood || (stock > 0 && free <= 0)} aria-label={stock > 0 ? '装入食物' : `购买${selectedFood?.name ?? '食物'}`} title={stock > 0 ? free > 0 ? '从背包装入储粮仓' : '储粮仓已满' : '前往商店补给'} onClick={() => { if (selectedFood) { if (stock > 0) run({ type: 'device-load-food', foodId: selectedFood.id, quantity: loadQuantity }); else openDeviceProduct(navigation, selectedFood) } }}><DeviceIcon kind={stock > 0 ? 'fill' : 'shop'} /></Button></div>
         {state.devices.foodQueue.length > 0 ? <ol className="pet-reservoir-queue" aria-label="储粮投放顺序">{state.devices.foodQueue.map((batch, index) => { const food = foods.find(food => food.id === batch.foodId); return <li key={`${index}:${batch.foodId}`}><PetFoodArt id={batch.foodId} /><div><strong>{food?.name ?? batch.foodId} × {batch.quantity}</strong><small>营养 {food?.fullness ?? 0} · 精力 +{food?.energy ?? 0} · 心情 +{food?.mood ?? 0}</small></div></li> })}</ol> : <small className="pet-reservoir-empty">储粮仓为空 · 装入后才会自动喂食</small>}
         <small className="pet-reservoir-note">按装入顺序投放；实际饱食恢复随宠物体重和吸收能力变化。</small></>}
-      {capacity.tier < 3 ? <div className="pet-reservoir-upgrade"><small>升级至 Lv.{capacity.tier + 1} · 容量 {nextCapacity} · 每轮 {nextService} 只</small><Button variant="ghost" disabled={busy || state.wallet.balance < upgradeCost} title={`升级需 ${upgradeCost} 宠物币`} aria-label={`升级${item.name}，${upgradeCost} 宠物币`} onClick={() => run({type:'device-upgrade',device:item.device!})}><DeviceIcon kind="upgrade" />{upgradeCost}</Button></div> : <small>Lv.3 · 已达最高级</small>}
+      {capacity.tier < 3 ? <div className="pet-reservoir-upgrade"><small>升级至 Lv.{capacity.tier + 1} · 容量 {nextCapacity} · 每轮 {nextService} 只</small><Button variant="ghost" disabled={busy || !petCanAfford(state, upgradeCost, economy)} title={`升级需 ${upgradeCost} 宠物币`} aria-label={`升级${item.name}，${upgradeCost} 宠物币`} onClick={() => run({type:'device-upgrade',device:item.device!})}><DeviceIcon kind="upgrade" />{upgradeCost}</Button></div> : <small>Lv.3 · 已达最高级</small>}
     </div>}
   </section>
 }

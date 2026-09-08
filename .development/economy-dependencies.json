@@ -1,0 +1,35 @@
+{
+  "status": "Experimental source/SDK integration; not merged, published, deployed, or native-accepted",
+  "petBase": "9689fdb34a4e46e2102249df18012338a5a6a7cf",
+  "artifacts": [
+    {
+      "package": "cordisx",
+      "repository": "https://github.com/cordisx/cordisx",
+      "sourceCommit": "b75fa2c6f9563924feca271242e2709c136033a3",
+      "artifact": "dependencies/cordisx-b75fa2c.tgz",
+      "sha256": "89647b8747c08de14e554870cef1da8e3ef196dc79544afd791bc0e2e23cf4ae",
+      "sourceStatus": "canonical baseline, HTTP runtime unavailable"
+    },
+    {
+      "package": "@cordisx/protocol",
+      "repository": "https://github.com/cordisx/cordisx-protocol",
+      "sourceCommit": "8adc1aab908263e692bd56ca6165b9aeadabe4b9",
+      "artifact": "dependencies/cordisx-protocol-8adc1aa.tgz",
+      "sha256": "2dd87652c4e17c4a0d0970538d6113d0dd02a22c2732a87f7b559e7edaca5884",
+      "sourceStatus": "experimental pushed provider branch"
+    },
+    {
+      "package": "@cordisx/economy",
+      "repository": "https://github.com/cordisx/plugin-economy",
+      "sourceCommit": "80aa91c6168126ac2b164446cd365d2f7c6249a2",
+      "artifact": "dependencies/cordisx-economy-80aa91c.tgz",
+      "sha256": "d96fe4463aa25758b98495dc36e6002ced5fbfd0a63d5143c4b3bf79d292d99f",
+      "sourceStatus": "experimental pushed provider branch"
+    }
+  ],
+  "rebuild": {
+    "economy": "checkout exact sourceCommit; npm ci --ignore-scripts; npm run build; npm pack --ignore-scripts",
+    "hostAndProtocol": "Provider-built immutable tarballs; original Host baseline workspace build and Protocol full check/distribution reported by provider. No local source edits to packaged inputs."
+  },
+  "runtimeLimitation": "Awaiting Host artifact with public ctx.http implementation. Current Host baseline only compiles the pre-existing Pet capabilities."
+}

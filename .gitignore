@@ -5,3 +5,8 @@ cordisx-package.json
 
 # Exact local Avatar candidate used by the development lockfile.
 !.development/dependencies/avatar-react-a06ba84-rc9.tgz
+
+# Exact experimental shared-economy consumer build inputs; see provenance record.
+!.development/dependencies/cordisx-b75fa2c.tgz
+!.development/dependencies/cordisx-protocol-8adc1aa.tgz
+!.development/dependencies/cordisx-economy-80aa91c.tgz

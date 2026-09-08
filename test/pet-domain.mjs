@@ -107,7 +107,7 @@ test('position, visibility and active selection preserve stable identities', () 
 })
 test('corrupt economy and future versions fail closed rather than silently reset', () => {
   assert.equal(migratePetState(null).pets.length, 1)
-  assert.throws(() => migratePetState({ ...createPetState(), version: 2 }), /版本/)
+  assert.throws(() => migratePetState({ ...createPetState(), version: 3 }), /版本/)
   const bad = createPetState(); bad.wallet.balance = 100
   assert.throws(() => migratePetState(bad), /账目/)
 })

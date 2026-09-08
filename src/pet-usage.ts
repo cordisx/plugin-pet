@@ -1,27 +1,23 @@
-import type { UsageV1, UsageSnapshotV1, UsageReadySnapshotV1 } from 'cordisx/contracts'
-import type { TrustedPetUsage } from './pet-domain.js'
+import type { UsageReadySnapshotV1, UsageSnapshotV1, UsageV1 } from 'cordisx/contracts'
 export type PetUsageStatus =
   | { status: 'initializing' }
   | { status: 'unavailable'; reason: string }
   | { status: 'ready'; coverage: 'partial'; observedThrough: number; eligibleTokens: number }
-export type PetUsageSettlement = (usage: TrustedPetUsage, key: string, isCurrent: () => boolean) => Promise<void>
-function counter(value: unknown): value is number { return Number.isSafeInteger(value) && Number(value) >= 0 }
+function counter(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+}
 function ready(value: UsageSnapshotV1): value is UsageReadySnapshotV1 {
   return value.schemaVersion === 1 && value.status === 'ready' && value.policyId === 'codex-local-input-output-v1'
     && typeof value.scopeId === 'string' && value.scopeId.length > 0 && value.scopeId.length <= 200
     && typeof value.sourceId === 'string' && value.sourceId.length > 0 && value.sourceId.length <= 200
     && typeof value.epoch === 'string' && value.epoch.length > 0 && value.epoch.length <= 200
-    && counter(value.revision) && counter(value.eligibleTokens) && counter(value.inputTokens) && counter(value.outputTokens)
+    && counter(value.revision) && counter(value.eligibleTokens) && counter(value.inputTokens)
+    && counter(value.outputTokens)
     && value.inputTokens + value.outputTokens === value.eligibleTokens && counter(value.observedThrough)
     && counter(value.enabledAt) && value.coverage === 'partial'
 }
-export async function petUsageSourceKey(snapshot: Pick<UsageReadySnapshotV1, 'scopeId' | 'sourceId' | 'epoch'>): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify([snapshot.scopeId, snapshot.sourceId, snapshot.epoch]))
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return `usage:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}`
-}
 /** Public invalidations are hints. Serialize reads and fence every async stage so a
- * superseding permission change cannot commit a stale ready result. */
+ * superseding permission change cannot publish stale attribution status. */
 export class PetUsageController {
   #closed = false
   #started = false
@@ -31,7 +27,6 @@ export class PetUsageController {
   #unsubscribe: (() => void) | undefined
   constructor(
     private readonly usage: UsageV1,
-    private readonly settle: PetUsageSettlement,
     private readonly publish: (status: PetUsageStatus) => void,
   ) {}
   async start(): Promise<void> {
@@ -39,18 +34,24 @@ export class PetUsageController {
     this.#started = true
     this.publish({ status: 'initializing' })
     try {
-      this.#unsubscribe = this.usage.subscribe(() => { void this.refresh() })
+      this.#unsubscribe = this.usage.subscribe(() => {
+        void this.refresh()
+      })
       await this.refresh()
-    } catch { this.publish({ status: 'unavailable', reason: 'host-unavailable' }) }
+    } catch {
+      this.publish({ status: 'unavailable', reason: 'host-unavailable' })
+    }
   }
   refresh(): Promise<void> {
     if (this.#closed) return Promise.resolve()
     this.#generation++
     this.#dirty = true
-    if (!this.#running) this.#running = this.drain().finally(() => {
-      this.#running = undefined
-      if (this.#dirty && !this.#closed) void this.refresh()
-    })
+    if (!this.#running) {
+      this.#running = this.drain().finally(() => {
+        this.#running = undefined
+        if (this.#dirty && !this.#closed) void this.refresh()
+      })
+    }
     return this.#running
   }
   private async drain(): Promise<void> {
@@ -69,12 +70,11 @@ export class PetUsageController {
           this.publish({ status: 'unavailable', reason: 'invalid-snapshot' })
           continue
         }
-        const sourceId = await petUsageSourceKey(snapshot)
-        if (!current()) continue
-        await this.settle({ sourceId, totalTokens: snapshot.eligibleTokens, revision: snapshot.revision }, `${sourceId}:${snapshot.revision}`, current)
-        if (current()) this.publish({ status: 'ready', coverage: 'partial', observedThrough: snapshot.observedThrough, eligibleTokens: snapshot.eligibleTokens })
+        // This profile aggregate cannot distinguish game inference from eligible work.
+        // Do not persist a frontier or a deferred reward: neither is trusted evidence.
+        this.publish({ status: 'unavailable', reason: 'usage-attribution-unavailable' })
       } catch {
-        if (current()) this.publish({ status: 'unavailable', reason: 'settlement-unavailable' })
+        if (current()) this.publish({ status: 'unavailable', reason: 'host-unavailable' })
       }
     }
   }
