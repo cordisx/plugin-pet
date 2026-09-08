@@ -1,9 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'cordisx/react'
-import { Avatar } from '@oneworks/avatar-react'
+import { Avatar } from '@oneworks/avatar-react/renderer'
 import { type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/avatar'
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import { createPetShapeTimeline } from './pet-scene-shape.js'
-import { advanceScene, reconcileSceneBodies, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
+import { advanceScene, requestSceneRest, reconcileSceneBodies, inputSceneBody, interruptSceneBody, sceneDiameter, advanceSceneScale, sceneHitRegion, restingSceneIds, reportScenePosition, syncScenePosition, type SceneBody } from './pet-scene-model.js'
 import { advanceSceneGaze, captureSceneFrame, sameSceneRegion, secondarySceneMotion, type RenderBody, type SceneRegion } from './pet-scene-render.js'
 
 export interface PetSceneEntity { id: string; name: string; x: number; sizeScale?: number; definition: AvatarDefinition }
@@ -19,7 +19,7 @@ export interface PetSceneProps {
   draggable?: boolean
   idleAnimations?: boolean
   pausedIds?: readonly string[]
-  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' }
+  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' | 'sleep' | 'wake' }
 }
 const PetAvatarGeometry = memo(function PetAvatarGeometry({ definition, theme, timeline, time }: {
   definition: AvatarDefinition; theme: 'light' | 'dark'; timeline?: AvatarAnimationTimeline; time: number
@@ -40,8 +40,8 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now }: {
   const timeline = lifted ? liftTimeline : body.pose.ball > .001 ? rollTimeline : undefined
   const falling = body.y < 0 && !body.dragging
   const pose = body.pose
-  const yaw = body.gazeYaw
-  const pitch = body.gazePitch
+  const yaw = body.dragging ? 0 : entity.definition.scene.view.yaw + body.gazeYaw
+  const pitch = body.dragging ? 0 : entity.definition.scene.view.pitch + body.gazePitch
   const eyes = Math.round(pose.eyes * 100) / 100
   const irritation = Math.round(body.irritation * 100) / 100
   const definition = useMemo(() => ({ ...entity.definition, scene: { ...entity.definition.scene,
@@ -166,7 +166,10 @@ export function PetScene(props: PetSceneProps) {
       if (current.feedback && current.feedback.sequence !== lastFeedback.current) {
         lastFeedback.current = current.feedback.sequence
         const body = bodies.current.find(body => body.id === current.feedback!.id)
-        if (body) { interruptSceneBody(body, now); body.mode = 'wake'; body.started = now; body.irritation = 0 }
+        if (body) {
+          if (current.feedback.kind === 'sleep') requestSceneRest(body, now)
+          else { interruptSceneBody(body, now); body.mode = 'wake'; body.started = now; body.irritation = 0 }
+        }
       }
       const previousModes = new Map(bodies.current.map(body => [body.id, { mode: body.mode, y: body.y }]))
       advanceScene(bodies.current, { width, height }, now, elapsed, {
@@ -179,8 +182,8 @@ export function PetScene(props: PetSceneProps) {
           current.onPositionChange?.(body.id, reportScenePosition(body, width))
         }
         const entity = current.entities.find(item => item.id === body.id)
-        // Implicit presets cannot be morphed through rc.8's public part API.
-        // Preserve the full animal and use hopping instead of clipping it away.
+        // rc.8 exposes preset rendering, but no public preset-part resolver.
+        // Whole-entity hopping preserves native geometry instead of faking a curl.
         if (body.mode === 'roll' && !entity?.definition.scene.entity.parts.some(part => part.face)) {
           body.mode = 'hop'; body.started = now
         }

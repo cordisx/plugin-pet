@@ -1,3 +1,4 @@
+import '@oneworks/avatar-react/renderer.css'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineReactVisual } from 'cordisx/react'
 import { CORDISX_PLUGIN_MANIFEST_SCHEMA_V11, type CordisXPluginManifestV11 } from 'cordisx/contracts'

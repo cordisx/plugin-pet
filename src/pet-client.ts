@@ -9,7 +9,8 @@ export type PetClientSnapshot = {
   error: string | null
   busy: boolean
   usage?: PetUsageStatus
-  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' }
+  restingPetIds?: string[]
+  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' | 'sleep' | 'wake' }
 }
 export type PetClientRuntime = {
   now: () => number
@@ -74,6 +75,7 @@ export class PetClient {
   }
   getSnapshot = (): PetClientSnapshot => this.#snapshot
   subscribe = (listener: () => void): (() => void) => {
+    if (this.#closed) return () => {}
     this.#listeners.add(listener)
     return () => { this.#listeners.delete(listener) }
   }
@@ -91,7 +93,8 @@ export class PetClient {
     try {
       const state = migratePetState(value)
       this.#revision = revision
-      this.update({ state, error: null })
+      this.#resting = this.#resting.filter(id => state.activePetIds.includes(id) && state.pets.some(pet => pet.id === id && pet.status === 'alive'))
+      this.update({ state, error: null, restingPetIds: [...this.#resting] })
     } catch (error) { this.update({ error: error instanceof Error ? error.message : '宠物存档读取失败' }) }
   }
   async start(): Promise<void> {
@@ -124,9 +127,26 @@ export class PetClient {
       this.#careReady = true
     }
   }
-  setRestingPets = (ids: string[]): void => { this.#resting = [...ids] }
+  private canRest(id: string): boolean {
+    const state = this.#snapshot.state
+    return !this.#closed && !!state?.activePetIds.includes(id) && state.pets.some(pet => pet.id === id && pet.status === 'alive')
+  }
+  requestSleep = (id: string): void => {
+    if (this.canRest(id)) this.update({ feedback: { id, kind: 'sleep', sequence: ++this.#feedback } })
+  }
+  requestWake = (id: string): void => {
+    if (this.canRest(id)) this.update({ feedback: { id, kind: 'wake', sequence: ++this.#feedback } })
+  }
+  /** Scene reports actual resting state after processing input; requests alone do not grant recovery. */
+  setRestingPets = (ids: string[]): void => {
+    if (this.#closed) return
+    const next = [...new Set(ids.filter(id => this.canRest(id)))].sort()
+    if (next.length === this.#resting.length && next.every((id, index) => id === this.#resting[index])) return
+    this.#resting = next
+    this.update({ restingPetIds: [...next] })
+  }
   reportError = (message: string): void => { this.update({ error: message }) }
-  refreshUsage = (): Promise<void> => this.#usage?.refresh() ?? Promise.resolve()
+  refreshUsage = (): Promise<void> => this.#closed ? Promise.resolve() : this.#usage?.refresh() ?? Promise.resolve()
   private scheduleCare(): void {
     if (this.#closed) return
     this.#careTimer = this.runtime.setTimeout(async () => {
@@ -159,7 +179,7 @@ export class PetClient {
     this.update({ busy: true, error: null })
     try {
       await this.#store.execute(command, this.runtime.randomId())
-      if (command.type === 'feed') this.update({ feedback: { id: command.petId, kind: 'feed', sequence: ++this.#feedback } })
+      if (command.type === 'feed' || command.type === 'water' || command.type === 'interact') this.update({ feedback: { id: command.petId, kind: command.type === 'interact' ? 'pet' : 'feed', sequence: ++this.#feedback } })
     } catch (error) {
       this.update({ error: error instanceof Error ? error.message : '操作失败，请重试' })
     } finally { this.update({ busy: --this.#pending > 0 }) }

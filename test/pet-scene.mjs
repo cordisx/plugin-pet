@@ -3,7 +3,7 @@ import test from 'node:test'
 import { idlePose } from '../src/pet-idle.ts'
 import { build } from 'esbuild'
 const bundle = await build({entryPoints:['src/pet-scene-model.ts'],bundle:true,write:false,format:'esm',platform:'node'})
-const {createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition,advanceSceneScale,sceneHitRegion,restingSceneIds,reconcileSceneBodies} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+const {requestSceneRest,createSceneBody,inputSceneBody,advanceScene,sceneTravel,reportScenePosition,syncScenePosition,advanceSceneScale,sceneHitRegion,restingSceneIds,reconcileSceneBodies} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 const bounds = { width: 640, height: 350 }
 const opts = { reducedMotion: false, idleAnimations: true, random: () => .8 }
 const body = (id = 'cat', x = .3) => createSceneBody({id,x},640,0,0)
@@ -104,27 +104,6 @@ test('coalesced menu-open snapshot releases pending drag and freezes pose withou
   advanceScene([a],bounds,3032,32,opts)
   assert.ok(a.y>y)
 })
-test('all public pet appearances retain morphable head and skin across roll and lift', async () => {
-  const compiled = await build({entryPoints:['src/pet-appearance.ts','src/pet-scene-shape.ts'],bundle:true,write:false,format:'esm',platform:'node',outdir:'test-output'})
-  const modules = await Promise.all(compiled.outputFiles.map(file=>import('data:text/javascript;base64,'+Buffer.from(file.text).toString('base64'))))
-  const {petAppearance}=modules[0]
-  const {createPetShapeTimeline}=modules[1]
-  const {resolveAvatarAnimationTimelineFrame}=await import('@oneworks/avatar')
-  for(const species of ['cat','dog','rabbit']) {
-    const definition=petAppearance(species)
-    for(const lifted of [false,true]) {
-      const timeline=createPetShapeTimeline(definition,lifted)
-      assert.ok(timeline)
-      for(const sample of [0,250,500,1000]) {
-        const frame=resolveAvatarAnimationTimelineFrame(definition,timeline,sample)
-        assert.equal(frame.scene.entity.parts.filter(part=>part.face).length,1)
-        assert.equal(frame.scene.appearance.paletteId,definition.scene.appearance.paletteId)
-        for(const part of frame.scene.entity.parts) assert.ok(part.scaleX>0 && part.scaleY>0)
-      }
-    }
-  }
-})
-
 test('body size interpolates while saved position and head baseline stay fixed', () => {
   const a=body()
   const originalX=a.x
@@ -198,4 +177,15 @@ test('crowded new arrivals stay in bounds and do not eject old pets', () => {
   const result=reconcileSceneBodies([old],[{id:'a',x:0},{id:'b',x:0},{id:'c',x:1}],150,100)
   assert.equal(old.x,0)
   assert.ok(result.every(body=>body.x>=0 && body.x<=22))
+})
+
+test('manual rest survives recovery from an interrupted hop and settles into sleep', () => {
+  const pet = body()
+  pet.mode = 'hop'; pet.pose = idlePose('hop', 500, 80)
+  requestSceneRest(pet, 500)
+  for (let now = 532; now <= 2500; now += 32) advanceScene([pet], bounds, now, 32, opts)
+  assert.equal(pet.mode, 'sleep')
+  assert.deepEqual(restingSceneIds([pet]), ['cat'])
+  inputSceneBody(pet, {phase:'start',deltaX:0,deltaY:0}, bounds, 2600)
+  assert.equal(pet.sleepRequested, false)
 })

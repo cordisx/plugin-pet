@@ -19,10 +19,27 @@ test('portable package binds the actual runtime manifest and package version', a
 })
 test('release keeps every indexed lazy graph file with its original digest', async () => {
   const artifact = await json('dist/runtime/artifact.json')
-  assert.ok(artifact.files.some(file => file.dynamicImports.length > 0))
+  const indexed = new Map(artifact.files.map(file => [file.path, file]))
+  assert.equal(indexed.size, artifact.files.length, 'artifact paths must be unique')
+  assert.equal(indexed.get(artifact.entry)?.kind, 'module')
+  const modules = artifact.files.filter(file => file.kind === 'module')
+  assert.ok(modules.some(file => Array.isArray(file.dynamicImports) && file.dynamicImports.length > 0))
+  for (const file of modules) {
+    for (const [field, kind] of [['imports','module'], ['dynamicImports','module'], ['styles','stylesheet'], ['assets','asset']]) {
+      assert.ok(Array.isArray(file[field]), `${file.path}: ${field}`)
+      for (const target of file[field]) assert.equal(indexed.get(target)?.kind, kind, `${file.path} -> ${target}`)
+    }
+  }
   for (const file of artifact.files) {
+    assert.match(file.path, /^\.\//)
+    assert.ok(!file.path.split('/').includes('..'), file.path)
     const bytes = await readFile(new URL(`dist/runtime/${file.path}`, root))
     assert.equal(digest(bytes), file.digest, file.path)
     assert.equal(bytes.length, file.byteLength, file.path)
+    if (file.mediaType === 'image/png') {
+      assert.equal(file.kind, 'asset')
+      assert.deepEqual([...bytes.subarray(0, 8)], [137,80,78,71,13,10,26,10], file.path)
+      assert.ok(modules.some(module => module.assets.includes(file.path)), `unreferenced PNG: ${file.path}`)
+    }
   }
 })

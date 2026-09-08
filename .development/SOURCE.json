@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/oneworks-ai/avatar",
+  "pr": "https://github.com/oneworks-ai/avatar/pull/39",
+  "sourceCommit": "a06ba84c123cf82e2b1a59c36b403392e22f9d08",
+  "sourceTree": "3200bd922aa2fbdc2d54af679e6d423cf54314a5",
+  "artifact": "dependencies/avatar-react-a06ba84-rc9.tgz",
+  "sha256": "de162336a62e33fcb336e7097eb87531a5747a7f222ef362c0541888c4d0d021",
+  "version": "1.0.0-rc.9",
+  "dependencies": {
+    "@oneworks/avatar": "1.0.0-rc.9"
+  },
+  "publication": "Local package built from canonical merged source; not the npm registry rc.9 tarball; no registry publication performed",
+  "validation": {
+    "requiredCI": "https://github.com/oneworks-ai/avatar/actions/runs/34254251911",
+    "localFocusedTests": 38,
+    "sdkBuildTypecheck": "pass",
+    "buildSourceIdentity": "Pre-merge verified source tree and canonical merge tree byte-identical; reused same build without redundant rebuild"
+  },
+  "consumerImports": [
+    "@oneworks/avatar-react/renderer",
+    "@oneworks/avatar-react/renderer.css"
+  ]
+}

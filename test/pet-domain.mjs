@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { build } from 'esbuild'
-const bundle = await build({ stdin: { contents: `export * from './src/pet-care.ts'; export * from './src/pet-domain.ts'; export * from './src/pet-store.ts'; export * from './src/pet-catalog.ts'`, resolveDir: process.cwd() }, bundle: true, format: 'esm', platform: 'node', write: false })
-const { advancePetCare, petWeightScale, initialPetCare, createPetState, applyPetCommand, settlePetUsage, migratePetState, PetStore, PET_CATALOG } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
+const bundle = await build({ stdin: { contents: `export * from './src/pet-attributes.ts'; export * from './src/pet-traits.ts'; export * from './src/pet-care.ts'; export * from './src/pet-domain.ts'; export * from './src/pet-store.ts'; export * from './src/pet-catalog.ts'`, resolveDir: process.cwd() }, bundle: true, format: 'esm', platform: 'node', write: false })
+const { foodEffect, petSeed, initialPetAttributes, initialPetTraits, advancePetCare, petWeightScale, initialPetCare, createPetState, applyPetCommand, settlePetUsage, migratePetState, PetStore, PET_CATALOG } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
 const tx = (key, now = 1000) => ({ key, now })
 function credit(state, tokens) {
   state = settlePetUsage(state, { sourceId: 'test-authoritative', totalTokens: 0 }, tx('baseline')).state
@@ -196,8 +196,9 @@ test('online pulses deduplicate overlapping windows and never catch up an offlin
   assert.equal(state.pets[0].care.fullness, first)
   state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 0 }, tx('restart-after-month', 32 * 86400000)).state
   assert.equal(state.pets[0].care.fullness, first)
+  const boundedExpected = advancePetCare(state.pets[0], 65000).care.fullness
   state = applyPetCommand(state, { type: 'carePulse', elapsedMs: 86400000 }, tx('bounded', 33 * 86400000)).state
-  assert.ok(first - state.pets[0].care.fullness < .11)
+  assert.equal(state.pets[0].care.fullness, boundedExpected)
   assert.equal(state.receipts.length, 0)
 })
 test('death is recorded once, burial preserves identity and revival consumes one core atomically', () => {
@@ -248,6 +249,112 @@ test('one long care simulation agrees with hourly steps and stops changing after
   let stepped = initial
   for (let index = 0; index < 48; index++) stepped = advancePetCare(stepped, 3_600_000)
   assert.equal(once.status, 'dead')
-  for (const key of ['fullness', 'energy', 'health', 'weight', 'lowFullnessMs']) assert.ok(Math.abs(once.care[key] - stepped.care[key]) < 1e-6, key)
+  for (const key of ['fullness', 'hydration', 'mood', 'energy', 'health', 'weight', 'lowFullnessMs', 'lowHydrationMs']) assert.ok(Math.abs(once.care[key] - stepped.care[key]) < 1e-6, key)
   assert.deepEqual(advancePetCare(once, 3_600_000), once)
+})
+
+test('legacy individuals gain stable base attributes and traits without altering inventory or economy', () => {
+  const legacy = credit(createPetState(), 500000)
+  const expected = structuredClone(legacy)
+  const pet = legacy.pets[0]
+  delete pet.attributes; delete pet.traits; delete pet.exploration
+  delete pet.care.hydration; delete pet.care.mood; delete pet.care.lowHydrationMs
+  const migrated = migratePetState(legacy)
+  assert.deepEqual(migrated.wallet, expected.wallet)
+  assert.deepEqual(migrated.foodInventory, expected.foodInventory)
+  assert.deepEqual(migrated.ownedSkinIds, expected.ownedSkinIds)
+  assert.deepEqual(migrated.pets[0].attributes, initialPetAttributes(pet.id))
+  assert.deepEqual(migrated.pets[0].traits, initialPetTraits(pet.id))
+  assert.equal(migrated.pets[0].care.hydration, 100)
+  assert.equal(migrated.pets[0].care.mood, 80)
+  assert.deepEqual(migratePetState(migrated), migrated)
+  assert.notDeepEqual(initialPetAttributes('pet:cat'), initialPetAttributes('pet:dog'))
+  for (const attributes of [{ ...migrated.pets[0].attributes, luck: 101 }, { ...migrated.pets[0].attributes, absorption: NaN }]) {
+    const invalid = structuredClone(migrated); invalid.pets[0].attributes = attributes
+    assert.throws(() => migratePetState(invalid), /基础属性/)
+  }
+})
+test('nutrition scales inversely with actual body mass and absorption talent doubles fullness', () => {
+  const food = PET_CATALOG.find(item => item.id === 'food-snack')
+  const pet = createPetState().pets[0]
+  pet.attributes.absorption = 1; pet.attributes.talent = 'none'
+  assert.equal(foodEffect(pet, food).fullness, food.fullness)
+  const dog = { ...pet, care: { ...pet.care, weight: 8 } }
+  const rabbit = { ...pet, care: { ...pet.care, weight: 2 } }
+  assert.equal(foodEffect(dog, food).fullness, food.fullness / 2)
+  assert.equal(foodEffect(rabbit, food).fullness, food.fullness * 2)
+  dog.attributes = { ...dog.attributes, talent: 'double-nutrition' }
+  assert.equal(foodEffect(dog, food).fullness, food.fullness)
+  const state = createPetState(); state.pets[0] = { ...pet, care: { ...pet.care, fullness: 95 } }
+  const fed = applyPetCommand(state, { type: 'feed', petId: pet.id, foodId: food.id }, tx('capped')).state
+  assert.equal(fed.pets[0].care.fullness, 100)
+  assert.equal(fed.foodInventory[food.id], state.foodInventory[food.id] - 1)
+})
+test('dehydration has its own grace period and drinking restores hydration without a purchase', () => {
+  const state = createPetState(); const pet = state.pets[0]
+  pet.care.hydration = 0
+  const grace = advancePetCare(pet, 3600000)
+  assert.equal(grace.care.health, 100)
+  const thirsty = advancePetCare(grace, 3600000)
+  assert.equal(thirsty.care.health, 94)
+  state.pets[0] = thirsty
+  const drank = applyPetCommand(state, { type: 'water', petId: pet.id }, tx('water')).state
+  assert.equal(drank.pets[0].care.hydration, 35)
+  assert.equal(drank.pets[0].care.lowHydrationMs, 0)
+  assert.deepEqual(drank.wallet, state.wallet)
+  assert.deepEqual(drank.foodInventory, state.foodInventory)
+  assert.equal(advancePetCare(drank.pets[0], 3600000).care.health, 96)
+})
+test('individual metabolism and resistance change depletion; intelligence affects play but cooldown stays enforced', () => {
+  const initial = createPetState().pets[0]
+  const slow = { ...initial, attributes: { ...initial.attributes, metabolism: .5 }, traits: { ...initial.traits, hungerResistance: 2 } }
+  const fast = { ...initial, attributes: { ...initial.attributes, metabolism: 2 }, traits: { ...initial.traits, hungerResistance: .5 } }
+  assert.ok(advancePetCare(slow, 3600000).care.fullness > advancePetCare(fast, 3600000).care.fullness)
+  function play(intelligence) {
+    const state = createPetState(); state.pets[0].attributes.intelligence = intelligence; state.pets[0].care.mood = 0
+    return applyPetCommand(state, { type: 'interact', petId: initial.id }, tx('play')).state
+  }
+  assert.ok(play(100).pets[0].care.mood > play(0).pets[0].care.mood)
+  const first = play(100)
+  const second = applyPetCommand(first, { type: 'interact', petId: initial.id }, tx('repeat')).state
+  assert.equal(second.pets[0].care.mood, first.pets[0].care.mood)
+})
+test('luck changes online forage outcome; concurrent clocks and retries cannot duplicate rewards', () => {
+  const index = Array.from({ length: 1000 }, (_, n) => n + 1).find(n => {
+    const chance = petSeed(`pet:cat:forage:${n}`) % 10000 / 10000
+    return chance >= .05 && chance < .45
+  })
+  function prepared(luck) {
+    const state = createPetState(); state.careUpdatedAt = 0; state.pets[0].attributes.luck = luck
+    state.pets[0].exploration.onlineMs = index * 1800000 - 60000
+    state.pets[0].exploration.eventIndex = index - 1
+    return state
+  }
+  const pulse = { type: 'carePulse', elapsedMs: 60000 }
+  const lucky = applyPetCommand(prepared(100), pulse, tx('lucky', 60000)).state
+  const unlucky = applyPetCommand(prepared(0), pulse, tx('unlucky', 60000)).state
+  assert.equal(lucky.pets[0].exploration.events.at(-1).kind, 'forage')
+  assert.equal(unlucky.pets[0].exploration.events.at(-1).kind, 'discovery')
+  assert.equal(Object.values(lucky.foodInventory).reduce((a,b) => a+b), 4)
+  assert.equal(lucky.receipts.filter(item => item.kind === 'forage').length, 1)
+  assert.deepEqual(migratePetState(lucky), lucky)
+  const overlap = applyPetCommand(lucky, pulse, tx('other-window', 60000)).state
+  assert.deepEqual(overlap.foodInventory, lucky.foodInventory)
+  assert.equal(overlap.receipts.length, lucky.receipts.length)
+  assert.equal(applyPetCommand(lucky, pulse, tx('lucky', 60000)).duplicate, true)
+  for (const inactive of [false, true]) {
+    const state = prepared(100); if (inactive) state.activePetIds = []
+    const paused = applyPetCommand(state, { ...pulse, restingPetIds: inactive ? [] : ['pet:cat'] }, tx('paused', 60000)).state
+    assert.equal(paused.pets[0].exploration.onlineMs, state.pets[0].exploration.onlineMs)
+    assert.deepEqual(paused.foodInventory, state.foodInventory)
+  }
+})
+
+test('weight caps apply before later hunger loss regardless of pulse size', () => {
+  const initial = createPetState().pets[0]
+  initial.care.weight = 6; initial.care.fullness = 100
+  const once = advancePetCare(initial, 24 * 3600000)
+  let stepped = initial
+  for (let i = 0; i < 1440; i++) stepped = advancePetCare(stepped, 60000)
+  for (const key of Object.keys(once.care)) assert.ok(Math.abs(once.care[key] - stepped.care[key]) < 1e-5, key)
 })

@@ -4,7 +4,7 @@ export interface SceneEntity { id: string; x: number; sizeScale?: number }
 export interface SceneBody {
   id: string; sizeScale: number; storedX: number; expectedPositions: number[]; x: number; y: number; velocity: number; menuOpen: boolean; dragging: boolean; pressed: boolean;
   startX: number; startY: number; mode: PetIdleKind; started: number; lastInteraction: number;
-  sleepBlendUntil: number; recoverUntil: number; pausedSince?: number; lift: number; nextAction: number; distance: number; pose: PetIdlePose; irritation: number; landing: number;
+  sleepRequested?: boolean; sleepBlendUntil: number; recoverUntil: number; pausedSince?: number; lift: number; nextAction: number; distance: number; pose: PetIdlePose; irritation: number; landing: number;
 }
 export interface SceneBounds { width: number; height: number }
 export type SceneInput = { phase: string; menuOpen?: boolean; deltaX: number; deltaY: number }
@@ -23,7 +23,13 @@ export function interruptSceneBody(body: SceneBody, now: number) {
   body.mode = 'rest'; body.started = now; body.distance = 0; body.recoverUntil = now + 400
   body.lastInteraction = now; body.nextAction = now + 9000
 }
+export function requestSceneRest(body: SceneBody, now: number) {
+  interruptSceneBody(body, now)
+  body.irritation = 0
+  body.sleepRequested = true
+}
 export function inputSceneBody(body: SceneBody, input: SceneInput, bounds: SceneBounds, now: number, settings: { draggable?: boolean; clickFeedback?: boolean } = {}) {
+  if (input.phase === 'start') body.sleepRequested = false
   if (input.menuOpen !== undefined) body.menuOpen = input.menuOpen
   if (body.menuOpen) {
     // A Host publish may coalesce cancellation and the following menu snapshot.
@@ -109,6 +115,10 @@ export function advanceScene(bodies: SceneBody[], bounds: SceneBounds, now: numb
       body.pose = blendIdlePose(body.pose, REST_POSE, options.reducedMotion ? 1 : 1 - Math.exp(-dt / 110))
       if (controlled) body.lastInteraction = now
       continue
+    }
+    if (body.sleepRequested) {
+      body.sleepRequested = false; body.mode = 'sleep'; body.started = now
+      body.lastInteraction = now - 60000; body.sleepBlendUntil = now + 600
     }
     if (!options.idleAnimations || options.reducedMotion) {
       // Resting is a care state, independent from optional decorative motion.
