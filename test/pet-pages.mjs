@@ -16,7 +16,7 @@ const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, f
       : `import {createElement as h} from 'react'; export const Stack=({children})=>h('div',{},children); export const Icon=({name})=>h('i',{'data-icon':name}); export const Card=Stack; export const Text=({children,role})=>h('span',{role},children); export const Button=({children,...p})=>h('button',p,children); export const Select=({'aria-label':label,options,value,disabled})=>h('select',{'aria-label':label,value,disabled,onChange:()=>{}},options.map(x=>h('option',{key:x.value,value:x.value},x.label))); export const EmptyState=({title,description})=>h('div',{},title,description)`, loader: 'js' }))
   },
 }] })
-const { PetPage, peekPose, availableFoods, shopProducts, bagProducts, PET_SHOP_PAGE_SIZE } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)
+const { PetPage, PetWardrobe, peekPose, availableFoods, shopProducts, bagProducts, PET_SHOP_PAGE_SIZE } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)
 const stateBundle = await build({ entryPoints: ['src/pet-domain.ts'], bundle: true, format: 'esm', platform: 'node', write: false })
 const { createPetState } = await import(`data:text/javascript;base64,${Buffer.from(stateBundle.outputFiles[0].text).toString('base64')}`)
 function render(section, state = createPetState(), busy = false, usage, navigation) {
@@ -255,4 +255,18 @@ test('multiple companions keep only the selected portrait live', () => {
   const html=render('pets',state)
   assert.equal([...html.matchAll(/data-avatar-preset=/g)].length,1)
   assert.equal([...html.matchAll(/data-snapshot-species=/g)].length,1)
+})
+
+test('wardrobe includes locked same-species skins with prices and static previews', () => {
+  const state = createPetState()
+  const html = renderToStaticMarkup(createElement(PetWardrobe, {state, entity:state.pets[0], busy:false, run:()=>{}}))
+  assert.match(html, /云朵白，已穿戴/)
+  assert.match(html, /奶咖，未解锁/)
+  assert.match(html, /橘子汽水，已解锁/)
+  assert.match(html, /相伴纪念，未解锁/)
+  assert.doesNotMatch(html, /雪原|垂耳奶糖|data-avatar-preset/)
+  assert.match(html, /选择皮肤/)
+  state.ownedSkinIds.push('skin-siamese')
+  const unlocked = renderToStaticMarkup(createElement(PetWardrobe, {state, entity:state.pets[0], busy:false, run:()=>{}}))
+  assert.match(unlocked, /奶咖，已解锁/)
 })

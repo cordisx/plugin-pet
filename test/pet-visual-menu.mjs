@@ -1,33 +1,43 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { build } from 'esbuild'
-const bundle = await build({ stdin: { contents: `export { petVisualMenu } from './src/pet-visual-menu.ts'; export { PET_CATALOG } from './src/pet-catalog.ts'`, resolveDir: process.cwd() }, bundle: true, format: 'esm', platform: 'node', write: false })
-const { petVisualMenu, PET_CATALOG } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
-function assertPublicMenu(items) {
-  assert.ok(items.length <= 20)
-  assert.equal(new Set(items.map(item => item.id)).size, items.length)
-  for (const item of items) {
-    assert.ok(item.id.trim() && item.id.length <= 100)
-    assert.ok(item.label.trim() && item.label.length <= 200)
-    assert.ok(item.disabled === undefined || typeof item.disabled === 'boolean')
-    assert.ok(Object.keys(item).every(key => ['id','label','disabled'].includes(key)))
-  }
-}
-test('large food inventories remain within the public menu budget with a care-page escape hatch', () => {
-  const foodInventory = Object.fromEntries(PET_CATALOG.filter(item => item.kind === 'food').map(item => [item.id, 99]))
-  assert.ok(Object.keys(foodInventory).length > 13, 'regression covers a catalog that previously overflowed the 20-item menu')
-  const menu = petVisualMenu({foodInventory,mainPetId:'pet:cat'},'pet:cat')
-  assertPublicMenu(menu)
-  assert.equal(menu.filter(item => item.id.startsWith('feed:')).length, 4)
-  assert.equal(menu.find(item => item.id === 'pets').label, '更多喂食与照顾…')
-  assert.equal(menu.find(item => item.id === 'main').disabled, true)
+const bundle=await build({stdin:{contents:`export * from './src/pet-visual-menu.ts'; export { PET_CATALOG } from './src/pet-catalog.ts'; export { createPetState } from './src/pet-domain.ts'`,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'node',write:false})
+const {petVisualMenu,executePetVisualAction,PET_CATALOG,createPetState}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
+function flatten(items){return items.flatMap(item=>[item,...flatten(item.children??[])])}
+function assertPublicMenu(items,depth=1){assert.ok(items.length<=20);assert.ok(depth<=3);for(const item of items){assert.ok(item.id.length<=100&&item.id.trim());assert.ok(item.label.length<=200&&item.label.trim());assert.ok(/^(action|content|navigation)\./.test(item.icon));if(item.children)assertPublicMenu(item.children,depth+1)}}
+test('nested menu groups care and wardrobe with icons and bounded unique nodes',()=>{
+ const state=createPetState();state.foodInventory=Object.fromEntries(PET_CATALOG.filter(i=>i.kind==='food').map(i=>[i.id,99]));state.ownedSkinIds=PET_CATALOG.filter(i=>i.kind==='skin').map(i=>i.id)
+ const menu=petVisualMenu(state,'pet:cat');assertPublicMenu(menu)
+ const nodes=flatten(menu);assert.ok(nodes.length<=64);assert.equal(new Set(nodes.map(i=>i.id)).size,nodes.length)
+ assert.deepEqual(menu.map(i=>i.id),['details','group-feed','group-care','group-outfit','group-manage','shop'])
+ assert.ok(menu.find(i=>i.id==='group-feed').children.some(i=>i.id==='supplies'))
+ assert.ok(menu.find(i=>i.id==='group-outfit').children.some(i=>i.id==='wardrobe'))
+ assert.equal(nodes.find(i=>i.id==='main').disabled,true)
+ assert.equal(nodes.find(i=>i.id==='equip:skin-white').disabled,true)
 })
-test('empty and sparse inventories only offer food that can actually be used', () => {
-  const empty = petVisualMenu({foodInventory:{},mainPetId:'pet:cat'},'pet:dog')
-  assertPublicMenu(empty)
-  assert.equal(empty.filter(item => item.id.startsWith('feed:')).length, 0)
-  assert.ok(empty.some(item => item.id === 'pets'))
-  const sparse = petVisualMenu({foodInventory:{'food-snack':0,'food-meal':2},mainPetId:'pet:cat'},'pet:cat')
-  assertPublicMenu(sparse)
-  assert.deepEqual(sparse.filter(item => item.id.startsWith('feed:')), [{id:'feed:food-meal',label:'喂显存糯米团 · 2'}])
+test('food entries reflect actual inventory; skins are owned and species-compatible; sleep follows state',()=>{
+ const state=createPetState();state.foodInventory={'food-meal':2,'food-snack':0};state.ownedSkinIds.push('skin-shiba')
+ const menu=flatten(petVisualMenu(state,'pet:cat',true))
+ assert.deepEqual(menu.filter(i=>i.id.startsWith('feed:')).map(i=>i.id),['feed:food-meal'])
+ assert.ok(!menu.some(i=>i.id==='equip:skin-shiba'));assert.ok(menu.some(i=>i.id==='wake'));assert.ok(!menu.some(i=>i.id==='sleep'))
+ state.foodInventory={};assert.ok(flatten(petVisualMenu(state,'pet:cat')).some(i=>i.id==='supplies'))
+})
+test('legacy factory receives an icon-free flat menu within its 20-item budget',()=>{
+ const state=createPetState();state.foodInventory=Object.fromEntries(PET_CATALOG.filter(i=>i.kind==='food').map(i=>[i.id,3]))
+ const menu=petVisualMenu(state,'pet:cat',false,false)
+ assert.ok(menu.length<=20);assert.ok(menu.every(i=>!i.children&&!i.icon));assert.ok(menu.some(i=>i.id==='hide'));assert.ok(menu.some(i=>i.id==='shop'))
+})
+test('leaf dispatch targets the clicked instance and preserves current main/hide semantics',async()=>{
+ const calls=[],routes=[];const state=createPetState();state.activePetIds=['pet:cat','pet:cat:2']
+ const client={execute:async c=>calls.push(c),getSnapshot:()=>({state}),requestSleep:id=>calls.push(['sleep',id]),requestWake:id=>calls.push(['wake',id])}
+ const navigate=async(...args)=>routes.push(args)
+ for(const action of ['feed:food-meal','equip:skin-orange','water','play','sleep','wake','main','reset','hide','details','wardrobe','supplies','shop','settings','group-care','bogus'])await executePetVisualAction(client,'pet:cat:2',action,navigate)
+ assert.deepEqual(calls[0],{type:'feed',petId:'pet:cat:2',foodId:'food-meal'})
+ assert.deepEqual(calls[1],{type:'equip',petId:'pet:cat:2',skinId:'skin-orange'})
+ assert.ok(calls.some(c=>c.type==='setMain'&&c.petId==='pet:cat:2'))
+ assert.deepEqual(calls.find(c=>c.type==='setActive').petIds,['pet:cat'])
+ assert.ok(routes.some(([section,session])=>section==='pet-detail'&&session?.selectedPet==='pet:cat:2'))
+ assert.ok(routes.some(([section,session])=>section==='pet-detail'&&session?.carePanel==='skin'))
+ assert.ok(routes.some(([section,session])=>section==='shop'&&session?.filter==='food'))
+ assert.equal(routes.length,5)
 })

@@ -19,7 +19,7 @@ import { petAppearance } from './pet-appearance.js'
 import { PetFoodArt } from './pet-food-art.js'
 
 export type PetPageSection = 'shop' | 'pets' | 'bag' | 'settings' | 'ledger' | 'pet-detail' | 'product-detail' | 'bag-detail'
-export type PetPageSession = { filter: string; hideOwned: boolean; selectedPet?: string; product?: string; anchor?: string; group?: string; species?: string; page?: number }
+export type PetPageSession = { filter: string; hideOwned: boolean; selectedPet?: string; product?: string; anchor?: string; group?: string; species?: string; page?: number; detailTab?: 'status' | 'attributes' | 'actions'; carePanel?: 'food' | 'water' | 'skin' | 'play' | 'devices' }
 export type PetPageNavigation = { session: PetPageSession; open: (section: PetPageSection) => void }
 type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void; usage?: PetUsageStatus; navigation?: PetPageNavigation; sleep?: (id: string) => void; wake?: (id: string) => void; restingPetIds?: string[] }
 const Preview = memo(function Preview({ entity, skinId }: { entity: PetEntity; skinId?: string }) {
@@ -182,7 +182,7 @@ function Afterlife({ entity, state, busy, run }: Commands & { entity: PetEntity 
 }
 function PetCard(props: Commands & { entity: PetEntity; selectPet: (id: string) => void }) {
   const { entity, state, busy, run } = props
-  const [tab, setTab] = useState('status')
+  const [tab, setTab] = useState(props.navigation?.session.detailTab ?? 'status')
   const [name, setName] = useState(entity.name)
   const [editing, setEditing] = useState(false)
   const personality = PET_PERSONALITIES[entity.traits.personality]
@@ -232,10 +232,27 @@ function FeedingTray({ entity, state, busy, run, navigation }: Commands & { enti
     <div className="pet-food-use"><div><strong>{food.name}</strong><div className="pet-food-effects"><span title="饱食度"><Glyph kind="food" /> +{Math.min(100-entity.care.fullness, foodEffect(entity, food).fullness).toFixed(1)}</span><span title="精力"><Glyph kind="energy" /> +{food.energy}</span><span title="心情"><Glyph kind="smile" /> +{Math.min(100-entity.care.mood,(food.mood ?? 0)*entity.traits.cheerfulness).toFixed(1)}</span><span title="亲密度"><Glyph kind="heart" /> +{food.affinity}</span></div></div><Button className="pet-care-icon" variant="ghost" aria-label={label} title={stocked && entity.care.fullness >= 100 ? '饱食度已满' : label} disabled={busy || (stocked && (entity.status !== 'alive' || entity.care.fullness >= 100))} onClick={() => stocked ? run({type:'feed',petId:entity.id,foodId:food.id}) : openProduct(navigation,food)}><Glyph kind={stocked ? 'food' : 'shop'} /></Button></div>
   </div>
 }
+export function PetWardrobe(props: Commands & { entity: PetEntity }) {
+  const { entity, state, busy, run } = props
+  const skins = PET_CATALOG.filter(item => item.kind === 'skin' && item.species === entity.species)
+  const [selected, setSelected] = useState(entity.skinId)
+  const skin = skins.find(item => item.id === selected) ?? skins[0]
+  if (!skin) return <EmptyState title="暂无可用装扮" />
+  const owned = state.ownedSkinIds.includes(skin.id)
+  const applicableAffinity = Math.max(0, ...state.pets.filter(pet => pet.species === entity.species).map(pet => pet.affinity))
+  const requiredAffinity = skin.requiredAffinity ?? 0
+  const reason = applicableAffinity < requiredAffinity ? `需要亲密度 ${requiredAffinity} · 当前 ${applicableAffinity}` : state.wallet.balance < skin.price ? '宠物币不足' : ''
+  return <div className="pet-wardrobe"><div className="pet-outfit-rail" role="group" aria-label="选择皮肤">{skins.map(item => {
+    const unlocked = state.ownedSkinIds.includes(item.id)
+    return <button type="button" className="pet-outfit-choice" key={item.id} aria-pressed={skin.id === item.id} aria-label={`${item.name}，${entity.skinId === item.id ? '已穿戴' : unlocked ? '已解锁' : '未解锁'}`} onClick={() => setSelected(item.id)}><Preview entity={entity} skinId={item.id} /><span>{item.name}</span><span>{entity.skinId === item.id ? '已穿戴' : unlocked ? '已解锁' : item.price ? <><Glyph kind="coin" /> {item.price}</> : item.requiredAffinity ? <><Glyph kind="heart" /> {item.requiredAffinity}</> : '免费'}</span></button>
+  })}</div><div className="pet-food-use"><div><strong>{skin.name}</strong>{!owned && <Text tone="muted">{reason || (skin.price ? `${skin.price} 宠物币 · 永久解锁` : '免费解锁')}</Text>}</div>
+    {owned ? <Button disabled={busy || skin.id === entity.skinId} onClick={() => run({type:'equip',petId:entity.id,skinId:skin.id})}><Glyph kind="outfit" />{skin.id === entity.skinId ? '已穿戴' : '穿上这件'}</Button>
+      : <Button disabled={busy || !!reason} title={reason || undefined} onClick={() => run({type:'buy',productId:skin.id})}><Glyph kind={skin.price ? 'coin' : 'outfit'} />{skin.price ? `解锁 · ${skin.price}` : '免费解锁'}</Button>}
+  </div></div>
+}
 function CareActions(props: Commands & { entity: PetEntity }) {
   const { entity, state, busy, run, navigation } = props
-  const [panel, setPanel] = useState('food')
-  const [skin, setSkin] = useState(entity.skinId)
+  const [panel, setPanel] = useState(props.navigation?.session.carePanel ?? 'food')
   const [menu, setMenu] = useState(false)
   const menuRoot = useRef<HTMLDivElement>(null)
   const sleeping = props.restingPetIds?.includes(entity.id) ?? false
@@ -250,9 +267,8 @@ function CareActions(props: Commands & { entity: PetEntity }) {
     return () => { document.removeEventListener('pointerdown',close); document.removeEventListener('keydown',escape) }
   },[menu])
   if (!alive) return <Afterlife {...props} />
-  const skins = PET_CATALOG.filter(item => item.kind === 'skin' && item.species === entity.species && state.ownedSkinIds.includes(item.id))
   return <div className="pet-care-actions"><div className="pet-action-row">{([['food','food','喂食'],['water','water','饮水'],['skin','outfit','装扮'],['play','smile','互动'],['devices','settings','自动设备']] as const).map(([id,icon,label]) => <Button key={id} variant="ghost" aria-label={label} title={label} aria-pressed={panel === id} onClick={() => setPanel(id)}><Glyph kind={icon} /></Button>)}<Button variant="ghost" disabled={busy || !active} aria-label={sleeping ? '唤醒' : '休息'} title={active ? sleeping ? '唤醒' : '休息' : '出场后可以休息'} onClick={() => sleeping ? props.wake?.(entity.id) : props.sleep?.(entity.id)}><Glyph kind="moon" /></Button><div className="pet-more" ref={menuRoot}><Button variant="ghost" aria-label="更多操作" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}><Glyph kind="more" /></Button>{menu && <div className="pet-more-menu" role="menu" onKeyDown={event => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')); const index = items.indexOf(document.activeElement as HTMLButtonElement); items[(index+(event.key === 'ArrowDown' ? 1 : -1)+items.length)%items.length]?.focus() } }}><Button role="menuitem" variant="ghost" disabled={busy || (!active && state.activePetIds.length >= state.settings.maxActivePets)} onClick={() => { run({type:'setActive',petIds:active ? state.activePetIds.filter(id=>id!==entity.id) : [...state.activePetIds,entity.id]});setMenu(false) }}><Glyph kind="paw" />{active ? '收起' : '出场'}</Button><Button role="menuitem" variant="ghost" disabled={busy || entity.id === state.mainPetId} onClick={() => {run({type:'setMain',petId:entity.id});setMenu(false)}}><Glyph kind="luck" />设为主宠</Button><Button role="menuitem" variant="ghost" disabled={busy} onClick={() => {run({type:'move',petId:entity.id,x:.5});setMenu(false)}}><Glyph kind="back" />重置位置</Button></div>}</div></div>
-    <div className="pet-care-panel">{panel === 'devices' && <div className="pet-device-list">{PET_CATALOG.filter(item=>item.device).map(item=><DeviceControl key={item.id} {...props} item={item} />)}</div>}{panel === 'food' && <FeedingTray {...props} />}{panel === 'water' && <div className="pet-water-use"><PetFoodArt id="water" /><span title="本次恢复饮水"><Glyph kind="water" /> +{Math.min(35,100-entity.care.hydration).toFixed(0)}</span><Button variant="ghost" className="pet-care-icon" aria-label="喝水" title="喝水" disabled={busy || entity.care.hydration >= 100} onClick={() => run({type:'water',petId:entity.id})}><Glyph kind="water" /></Button></div>}{panel === 'skin' && <><div className="pet-outfit-rail">{skins.map(item => <button className="pet-outfit-choice" key={item.id} aria-pressed={skin === item.id} onClick={() => setSkin(item.id)}><Preview entity={entity} skinId={item.id} /><span>{item.name}{entity.skinId === item.id ? ' · 已穿戴' : ''}</span></button>)}</div><div className="pet-food-use"><Button disabled={busy || skin === entity.skinId} onClick={() => run({type:'equip',petId:entity.id,skinId:skin})}>{skin === entity.skinId ? '已穿戴' : '穿上这件'}</Button><Button variant="ghost" onClick={() => { if(navigation){navigation.session.filter='skin';navigation.open('shop')} }}>更多装扮</Button></div></>}{panel === 'play' && <div className="pet-inline-use"><Glyph kind="smile" /><div><strong>{PET_PERSONALITIES[entity.traits.personality].name}的{entity.name}</strong><p>{PET_PERSONALITIES[entity.traits.personality].description}</p></div><Button disabled={busy || sleeping} onClick={() => run({type:'interact',petId:entity.id})}>陪它玩</Button></div>}</div>
+    <div className="pet-care-panel">{panel === 'devices' && <div className="pet-device-list">{PET_CATALOG.filter(item=>item.device).map(item=><DeviceControl key={item.id} {...props} item={item} />)}</div>}{panel === 'food' && <FeedingTray {...props} />}{panel === 'water' && <div className="pet-water-use"><PetFoodArt id="water" /><span title="本次恢复饮水"><Glyph kind="water" /> +{Math.min(35,100-entity.care.hydration).toFixed(0)}</span><Button variant="ghost" className="pet-care-icon" aria-label="喝水" title="喝水" disabled={busy || entity.care.hydration >= 100} onClick={() => run({type:'water',petId:entity.id})}><Glyph kind="water" /></Button></div>}{panel === 'skin' && <PetWardrobe {...props} />}{panel === 'play' && <div className="pet-inline-use"><Glyph kind="smile" /><div><strong>{PET_PERSONALITIES[entity.traits.personality].name}的{entity.name}</strong><p>{PET_PERSONALITIES[entity.traits.personality].description}</p></div><Button disabled={busy || sleeping} onClick={() => run({type:'interact',petId:entity.id})}>陪它玩</Button></div>}</div>
   </div>
 }
 const AlbumPortrait = memo(function AlbumPortrait({ entity, expressive = false, live = true }: { entity: PetEntity; expressive?: boolean; live?: boolean }) {
