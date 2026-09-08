@@ -5,10 +5,10 @@
     {
       "package": "cordisx",
       "repository": "https://github.com/cordisx/cordisx",
-      "sourceCommit": "1d2636adbe239550fd70e3e82d4b43681a800833",
-      "artifact": "dependencies/cordisx-1d2636a.tgz",
-      "sha256": "fbb47a38f3dc31b1db8ffd78b8b182dae1f01ed9de5c07c27f290af95e92a274",
-      "sourceStatus": "experimental pushed provider branch; portable source SDK with complete bundled runtime dependencies"
+      "sourceCommit": "69b0146c4d4b6acd411758ae4ec3005ea74d0b89",
+      "artifact": "dependencies/cordisx-69b0146.tgz",
+      "sha256": "42f655ad735fd430e6f455bbb2e8da31f5eb564c247a3c31bbb1e9774df131c4",
+      "sourceStatus": "experimental pushed provider branch; portable source SDK with complete Channel/CLIProxy bundles and shared Protocol module identity"
     },
     {
       "package": "@cordisx/protocol",
@@ -29,7 +29,7 @@
   ],
   "rebuild": {
     "economy": "checkout exact sourceCommit; npm ci --ignore-scripts; npm run build; npm pack --ignore-scripts",
-    "hostAndProtocol": "From exact Host 1d2636adbe239550fd70e3e82d4b43681a800833 checkout run node scripts/prepare-sdk.mjs /absolute/path/to/nonexistent-output; do not run npm ci first. Canonical recipe: https://github.com/cordisx/cordisx/blob/1d2636adbe239550fd70e3e82d4b43681a800833/.agents/docs/sdk-source-packaging.md. Use packages/cordisx-0.1.0-beta.2.tgz and the Protocol package from the same output; verify sdk-evidence.json hashes. Provider full owner gate and native acceptance remain separate."
+    "hostAndProtocol": "From exact Host 69b0146c4d4b6acd411758ae4ec3005ea74d0b89 checkout run node scripts/prepare-sdk.mjs /absolute/path/to/nonexistent-output; do not run npm ci first. Canonical recipe: https://github.com/cordisx/cordisx/blob/69b0146c4d4b6acd411758ae4ec3005ea74d0b89/.agents/docs/sdk-source-packaging.md. Use packages/cordisx-0.1.0-beta.2.tgz and the Protocol package from the same output; verify sdk-evidence.json hashes. Provider full owner gate and native acceptance remain separate."
   },
   "runtimeLimitation": "Pet 171-test owner check passed with previous Host 5101d6e. This final portable Host pin requires Linux CI validation. Native host-isolated startup previously reached a login page, then CDP discovery timed out before Pet/Keychain interaction; native retries are paused. Generation reload requires reauthorization."
 }

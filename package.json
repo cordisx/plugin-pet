@@ -37,7 +37,7 @@
     "@cordisx/protocol": "file:.development/dependencies/cordisx-protocol-465c444.tgz",
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/schemastery": "3.18.1",
-    "cordisx": "file:.development/dependencies/cordisx-1d2636a.tgz",
+    "cordisx": "file:.development/dependencies/cordisx-69b0146.tgz",
     "esbuild": "0.28.2",
     "typescript": "^5.9.2",
     "vite": "8.2.2"

@@ -1,0 +1,29 @@
+name: Pet checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pet-check-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+          cache: npm
+      - name: Verify exact SDK artifact hashes
+        run: node --test test/economy-dependencies.mjs
+      - name: Install complete dependency graph
+        run: npm ci
+      - name: Verify SDK dependency resolution
+        run: npm ls cordisx @cordisx/protocol @cordisx/channel @cordisx/plugin-cli-proxy-api
+      - name: Check types, package and behavior
+        run: npm run check
