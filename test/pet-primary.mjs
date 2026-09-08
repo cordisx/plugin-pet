@@ -31,12 +31,14 @@ test('state face preserves each species, skin, and head geometry while adjusting
       assert.equal(result.scene.appearance,base.scene.appearance)
       assert.equal(result.scene.view.scale,1.9)
       assert.equal(result.scene.view.positionY,30)
+      assert.equal(result.scene.view.yaw,base.scene.view.yaw)
+      assert.equal(result.scene.view.pitch,base.scene.view.pitch)
       if(mode==='thinking') assert.notEqual(result.scene.face.leftEyeHeight,result.scene.face.rightEyeHeight)
     }
   }
 })
 
-test('weight quantization preserves neutral geometry and moves all attachments together without changing skin', () => {
+test('weight quantization scales the entire native preset and survives primary framing', () => {
   assert.equal(primaryWeightFactor(1),1)
   assert.equal(primaryWeightFactor(1.001),1)
   assert.equal(primaryWeightFactor(9),1.06)
@@ -46,13 +48,9 @@ test('weight quantization preserves neutral geometry and moves all attachments t
     assert.equal(primaryWeightDefinition(base,1),base)
     const altered=primaryWeightDefinition(base,1.06)
     assert.equal(altered.scene.appearance,base.scene.appearance)
-    assert.equal(altered.scene.view,base.scene.view)
-    const head=base.scene.entity.parts.find(part=>part.face)
-    for(let index=0;index<base.scene.entity.parts.length;index++) {
-      const original=base.scene.entity.parts[index], part=altered.scene.entity.parts[index]
-      assert.equal(part.x,head.x+(original.x-head.x)*1.06)
-      assert.equal(part.scaleX,original.scaleX*1.06)
-      for(const key of ['baseColor','foregroundColor','highlightColor','shadowColor','y','scaleY']) assert.equal(part[key],original[key])
-    }
+    assert.equal(altered.scene.entity,base.scene.entity)
+    assert.equal(altered.scene.view.scale,base.scene.view.scale*1.06)
+    assert.equal(altered.scene.view.yaw,base.scene.view.yaw)
+    assert.ok(Math.abs(primaryDefinition(altered,{x:.5,y:.5},'idle').scene.view.scale-1.9*1.06)<1e-10)
   }
 })

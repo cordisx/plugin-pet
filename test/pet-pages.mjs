@@ -6,7 +6,7 @@ import { build } from 'esbuild'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 const require = createRequire(import.meta.url)
-const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, format: 'esm', platform: 'node', write: false, plugins: [{
+const result = await build({ entryPoints: ['src/pet-pages.tsx'], bundle: true, format: 'esm', platform: 'node', write: false, loader: { '.png': 'dataurl' }, plugins: [{
   name: 'host-page-test', setup(builder) {
     builder.onResolve({ filter: /^(cordisx\/react(?:\/jsx-runtime)?|react(?:\/jsx-runtime)?)$/ }, args => ({ path: pathToFileURL(require.resolve(args.path.replace('cordisx/', ''))).href, external: true }))
     builder.onResolve({ filter: /^cordisx\/ui$/ }, () => ({ path: 'ui', namespace: 'host-test' }))
@@ -35,7 +35,7 @@ test('shop renders real avatar definitions and unavailable income without offeri
 })
 test('wallet distinguishes permission denial from connected partial coverage', () => {
   const denied = render('ledger', createPetState(), false, { status: 'unavailable', reason: 'permission-denied' })
-  assert.match(denied, /允许读取本机 Token 使用量/)
+  assert.match(denied, /使用奖励未开启/)
   const ready = render('ledger', createPetState(), false, { status: 'ready', coverage: 'partial', observedThrough: 1000, eligibleTokens: 100000 })
   assert.match(ready, /不包含全部历史或其他设备/)
   assert.match(ready, /最近同步/)
@@ -49,7 +49,8 @@ test('overview keeps care forms in a secondary page and bag shows owned inventor
   assert.doesNotMatch(render('pets'), /查看档案/)
   assert.doesNotMatch(render('pet-detail',state,false,undefined,navigation), /for="name-pet:cat"/)
   assert.match(render('pet-detail',state,false,undefined,navigation), /aria-label="修改名字"/)
-  assert.match(render('pet-detail',state,false,undefined,navigation), /设为主宠/)
+  assert.match(render('pet-detail',state,false,undefined,navigation), /aria-label="更多操作" aria-haspopup="menu" aria-expanded="false"/)
+  assert.doesNotMatch(render('pet-detail',state,false,undefined,navigation), /<details|<summary|role="menuitem"/)
   assert.doesNotMatch(render('bag'), /奶咖 · 未解锁/)
   assert.match(render('settings'), /aria-label="减少动态效果"/)
   assert.match(render('ledger'), /还没有收支记录/)
@@ -62,12 +63,11 @@ test('shop filters persist and hide already owned products', () => {
   assert.match(html,/aria-pressed="true"/)
 })
 
-test('busy state disables every mutating button and settings selector', () => {
-  for (const section of ['shop', 'pets', 'bag', 'settings']) {
-    const html = render(section, createPetState(), true).replace(/<div class="pet-toolbar">[\s\S]*?<\/nav>[\s\S]*?<\/div>/, "")
-    for (const tag of html.matchAll(/<button\b[^>]*>/g)) if (!tag[0].includes('pet-card-open') && !tag[0].includes('pet-tile') && !tag[0].includes('pet-album-portrait') && !tag[0].includes('pet-album-selected-name')) assert.match(tag[0], /disabled=""/, `${section}: ${tag[0]}`)
-    if (section === 'settings') for (const tag of html.matchAll(/<select\b[^>]*>/g)) assert.match(tag[0], /disabled=""/)
-  }
+test('busy state disables care mutations and settings selectors while navigation stays available', () => {
+  const html = render('pets', createPetState(), true)
+  assert.match(html, /<button[^>]*disabled=""[^>]*>喂给猫猫<\/button>/)
+  assert.match(html, /<button[^>]*disabled=""[^>]*>[\s\S]*?休息<\/button>/)
+  for (const tag of render('settings',createPetState(),true).matchAll(/<select\b[^>]*>/g)) assert.match(tag[0], /disabled=""/)
 })
 
 test('care pages show weight and distinguish death from a retained memorial', () => {
@@ -76,7 +76,7 @@ test('care pages show weight and distinguish death from a retained memorial', ()
   assert.match(render('pets', state), /已逝去/)
   assert.match(render('pet-detail', state), /体重 4.00 kg/)
   assert.match(render('pet-detail', state), /安葬/)
-  assert.match(render('pet-detail', state), /重启核心/)
+  assert.match(render('pet-detail', state), /复活图腾/)
   state.pets[0].status = 'buried'
   assert.match(render('pets', state), /已安葬/)
   assert.match(render('settings', state), /离线时暂停/)
@@ -103,4 +103,30 @@ test('album omits duplicate chrome and recruitment placeholders; food follows st
   assert.deepEqual(availableFoods(state).map(food=>food.id), ['food-meal','food-feast'])
   state.foodInventory = {}
   assert.deepEqual(availableFoods(state), [])
+})
+
+test('shop buys into inventory with quantity and no recipient or use action', () => {
+  const nav = {session:{filter:'food',hideOwned:false,product:'food-snack'},open:()=>{}}
+  const html = render('product-detail',createPetState(),false,undefined,nav)
+  assert.match(html,/aria-label="购买数量" type="number" min="1" max="99" step="1" value="1"/)
+  assert.match(html,/合计 · 1 份/)
+  assert.doesNotMatch(html,/选择使用物品的宠物|>喂食<|>装备皮肤</)
+  const bag = render('bag-detail',createPetState(),false,undefined,nav)
+  assert.match(bag,/选择使用物品的宠物/)
+  assert.match(bag,/>喂食</)
+  assert.doesNotMatch(bag,/购买数量/)
+})
+test('care offers immediate food selection and shows distinct states and attributes', () => {
+  const home = render('pets')
+  assert.match(home,/背包里的食物/)
+  assert.match(home,/喂给猫猫/)
+  assert.match(home,/>饮水</)
+  assert.match(home,/>装扮</)
+  const detail = render('pet-detail')
+  assert.match(detail,/aria-label="饮水"/)
+  assert.match(detail,/aria-label="心情"/)
+  assert.match(detail,/智力/)
+  assert.match(detail,/幸运/)
+  assert.match(detail,/代谢/)
+  assert.match(detail,/吸收/)
 })

@@ -19,7 +19,7 @@ export interface PetSceneProps {
   draggable?: boolean
   idleAnimations?: boolean
   pausedIds?: readonly string[]
-  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' | 'sleep' }
+  feedback?: { id: string; sequence: number; kind: 'feed' | 'pet' | 'sleep' | 'wake' }
 }
 const PetAvatarGeometry = memo(function PetAvatarGeometry({ definition, theme, timeline, time }: {
   definition: AvatarDefinition; theme: 'light' | 'dark'; timeline?: AvatarAnimationTimeline; time: number
@@ -40,8 +40,8 @@ const SceneAvatar = memo(function SceneAvatar({ entity, body, state, now }: {
   const timeline = lifted ? liftTimeline : body.pose.ball > .001 ? rollTimeline : undefined
   const falling = body.y < 0 && !body.dragging
   const pose = body.pose
-  const yaw = body.gazeYaw
-  const pitch = body.gazePitch
+  const yaw = body.dragging ? 0 : entity.definition.scene.view.yaw + body.gazeYaw
+  const pitch = body.dragging ? 0 : entity.definition.scene.view.pitch + body.gazePitch
   const eyes = Math.round(pose.eyes * 100) / 100
   const irritation = Math.round(body.irritation * 100) / 100
   const definition = useMemo(() => ({ ...entity.definition, scene: { ...entity.definition.scene,
@@ -182,8 +182,8 @@ export function PetScene(props: PetSceneProps) {
           current.onPositionChange?.(body.id, reportScenePosition(body, width))
         }
         const entity = current.entities.find(item => item.id === body.id)
-        // Implicit presets cannot be morphed through rc.8's public part API.
-        // Preserve the full animal and use hopping instead of clipping it away.
+        // rc.8 exposes preset rendering, but no public preset-part resolver.
+        // Whole-entity hopping preserves native geometry instead of faking a curl.
         if (body.mode === 'roll' && !entity?.definition.scene.entity.parts.some(part => part.face)) {
           body.mode = 'hop'; body.started = now
         }

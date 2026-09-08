@@ -2,3 +2,6 @@ dist/
 node_modules/
 cordisx-package.json
 *.tgz
+
+# Exact local Avatar candidate used by the development lockfile.
+!.development/dependencies/avatar-react-e77997f.tgz

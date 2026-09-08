@@ -1,5 +1,6 @@
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import type { AvatarDefinition } from '@oneworks/avatar'
+import { PET_AVATAR_SCALE } from './pet-appearance.js'
 export type PrimaryMode = 'idle' | 'recording' | 'thinking'
 export interface PrimaryGaze { x: number; y: number }
 export function primaryMode(state: CordisXReactVisualProps['state']): PrimaryMode {
@@ -21,8 +22,8 @@ export function primaryDefinition(base: AvatarDefinition, gaze: PrimaryGaze, mod
     : {}
   return { ...base, scene: { ...base.scene,
     face: { ...base.scene.face, ...face },
-    view: { ...base.scene.view, scale: 1.9, positionY: 30,
-      yaw: Math.round((gaze.x - .5) * 60) / 100, pitch: Math.round((gaze.y - .5) * 30) / 100 },
+    view: { ...base.scene.view, scale: 1.9 * (base.scene.view.scale / PET_AVATAR_SCALE), positionY: 30,
+      yaw: base.scene.view.yaw + Math.round((gaze.x - .5) * 60) / 100, pitch: base.scene.view.pitch + Math.round((gaze.y - .5) * 30) / 100 },
   } }
 }
 
@@ -33,10 +34,6 @@ export function primaryWeightFactor(sizeScale: number): number {
 }
 export function primaryWeightDefinition(base: AvatarDefinition, factor: number): AvatarDefinition {
   if (factor === 1) return base
-  const head = base.scene.entity.parts.find(part => part.face)
-  if (!head) return base
-  const parts = base.scene.entity.parts.map(part => ({ ...part,
-    x: head.x + (part.x - head.x) * factor, scaleX: part.scaleX * factor,
-  }))
-  return { ...base, scene: { ...base.scene, entity: { ...base.scene.entity, parts } } }
+  // Native preset geometry is owned by Avatar; scale its complete rendered entity.
+  return { ...base, scene: { ...base.scene, view: { ...base.scene.view, scale: base.scene.view.scale * factor } } }
 }

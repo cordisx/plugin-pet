@@ -4,7 +4,7 @@ import type { PetClient } from './pet-client.js'
 import type { PetSection } from './pet-navigation.js'
 import { petAppearance } from './pet-appearance.js'
 import { PetScene } from './pet-scene.js'
-import { PET_CATALOG } from './pet-catalog.js'
+import { petVisualMenu } from './pet-visual-menu.js'
 import { petWeightScale } from './pet-care.js'
 
 export function createPetOverlay(client: PetClient, navigate: (section: PetSection) => Promise<void>) {
@@ -52,12 +52,7 @@ export function createPetOverlay(client: PetClient, navigate: (section: PetSecti
     }, [handles, props.interactions, handleRevision])
     useEffect(() => {
       if (!state) return
-      for (const [id, handle] of handles) handle.setMenu([
-        ...PET_CATALOG.filter(item => item.kind === 'food').map(food => ({ id: `feed:${food.id}`, label: `喂${food.name} · ${state.foodInventory[food.id] ?? 0}`, disabled: !state.foodInventory[food.id] })),
-        { id: 'main', label: state.mainPetId === id ? '当前主宠' : '设为主宠', disabled: state.mainPetId === id },
-        { id: 'bag', label: '换装与背包' }, { id: 'pets', label: '我的宠物' }, { id: 'shop', label: '宠物商店' },
-        { id: 'reset', label: '重置位置' }, { id: 'hide', label: '暂时收起' }, { id: 'settings', label: '互动设置' },
-      ])
+      for (const [id, handle] of handles) handle.setMenu(petVisualMenu(state, id))
     }, [handles, handleRevision, menuKey])
     const entities = useMemo(() => !state || !state.settings.visible ? [] : state.activePetIds.flatMap(id => {
       const pet = state.pets.find(item => item.id === id)

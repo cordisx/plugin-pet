@@ -101,8 +101,9 @@ test('online pulses run once per elapsed window and dispose removes all timers',
   await client.start(); await client.start()
   assert.equal(clock.pending(), 1)
   const initial = client.getSnapshot().state.pets[0].care.fullness
+  const decrement = minuteHunger(client.getSnapshot().state.pets[0])
   await clock.tick()
-  assert.ok(Math.abs(client.getSnapshot().state.pets[0].care.fullness - (initial - .1)) < 1e-8)
+  assert.ok(Math.abs(client.getSnapshot().state.pets[0].care.fullness - (initial - decrement)) < 1e-8)
   assert.equal(clock.pending(), 1)
   client.dispose()
   assert.equal(clock.pending(), 0)
@@ -115,12 +116,13 @@ test('system sleep is paused even when the monotonic clock does not include susp
   t.after(() => client.dispose())
   await client.start()
   const initial = client.getSnapshot().state.pets[0].care.fullness
+  const decrement = minuteHunger(client.getSnapshot().state.pets[0])
   await clock.tick(24 * 3600000, 60000)
   assert.equal(client.getSnapshot().state.pets[0].care.fullness, initial)
   await clock.tick(24 * 3600000)
   assert.equal(client.getSnapshot().state.pets[0].care.fullness, initial)
   await clock.tick()
-  assert.ok(Math.abs(client.getSnapshot().state.pets[0].care.fullness - (initial - .1)) < 1e-8)
+  assert.ok(Math.abs(client.getSnapshot().state.pets[0].care.fullness - (initial - decrement)) < 1e-8)
 })
 test('initial unavailable storage recovers automatically without accruing hunger debt', async t => {
   const clock = fakeClock(), bridge = documents(), client = new PetClient(bridge, clock.runtime)
@@ -142,15 +144,16 @@ test('a failed pulse reanchors on recovery and two clients do not double advance
   const clock = fakeClock(), bridge = documents(), a = new PetClient(bridge, clock.runtime), b = new PetClient(bridge, clock.runtime)
   t.after(() => { a.dispose(); b.dispose() })
   await Promise.all([a.start(), b.start()]); bridge.emit()
+  const decrement = minuteHunger(a.getSnapshot().state.pets[0])
   await clock.tick(); bridge.emit()
-  assert.ok(Math.abs(a.getSnapshot().state.pets[0].care.fullness - 79.9) < 1e-8)
+  assert.ok(Math.abs(a.getSnapshot().state.pets[0].care.fullness - (80 - decrement)) < 1e-8)
   bridge.unavailable()
   await clock.tick()
   bridge.unavailable(false)
   await clock.tick(); bridge.emit()
-  assert.ok(Math.abs(a.getSnapshot().state.pets[0].care.fullness - 79.9) < 1e-8)
+  assert.ok(Math.abs(a.getSnapshot().state.pets[0].care.fullness - (80 - decrement)) < 1e-8)
   await clock.tick(); bridge.emit()
-  assert.ok(Math.abs(a.getSnapshot().state.pets[0].care.fullness - 79.8) < 1e-8)
+  assert.ok(Math.abs(a.getSnapshot().state.pets[0].care.fullness - (80 - 2 * decrement)) < 1e-8)
 })
 test('HMR replacement keeps one timer and a disposed pending startup cannot write', async t => {
   const clock = fakeClock(), bridge = documents(), old = new PetClient(bridge, clock.runtime)
@@ -211,4 +214,62 @@ test('manual rest targets one living pet without changing persisted inventory', 
   const snapshot = client.getSnapshot()
   client.requestSleep('pet:cat')
   assert.equal(client.getSnapshot(), snapshot)
+})
+
+function minuteHunger(pet) { return .1 * pet.attributes.metabolism * ({cat:1,dog:.9,rabbit:1.2}[pet.species]) / pet.traits.hungerResistance }
+test('rest reports are normalized, deduplicated, and pruned when a pet leaves the scene', async t => {
+  const bridge = documents(), client = new PetClient(bridge, fakeClock().runtime)
+  t.after(() => client.dispose()); await client.start()
+  let updates = 0; client.subscribe(() => updates++)
+  const input = ['missing', 'pet:cat', 'pet:cat']
+  client.setRestingPets(input)
+  assert.deepEqual(client.getSnapshot().restingPetIds, ['pet:cat'])
+  input.length = 0
+  const before = client.getSnapshot()
+  client.setRestingPets(['pet:cat']); client.setRestingPets(['pet:cat','missing'])
+  assert.equal(client.getSnapshot(), before)
+  assert.equal(updates, 1)
+  await client.execute({type:'setActive',petIds:[]})
+  assert.deepEqual(client.getSnapshot().restingPetIds, [])
+  const inactive = client.getSnapshot()
+  client.requestWake('pet:cat'); client.requestSleep('pet:cat'); client.setRestingPets(['pet:cat'])
+  assert.equal(client.getSnapshot(), inactive)
+})
+test('rest and wake require a living active target and stop completely after dispose', async t => {
+  const bridge = documents(), client = new PetClient(bridge, fakeClock().runtime)
+  t.after(() => client.dispose()); await client.start()
+  const initial = client.getSnapshot()
+  client.requestWake('missing'); client.requestSleep('missing')
+  assert.equal(client.getSnapshot(), initial)
+  client.requestSleep('pet:cat'); assert.equal(client.getSnapshot().feedback.kind, 'sleep')
+  // A request is not proof of sleep; only the scene acknowledgement grants recovery.
+  assert.deepEqual(client.getSnapshot().restingPetIds, [])
+  client.setRestingPets(['pet:cat']); client.requestWake('pet:cat')
+  assert.equal(client.getSnapshot().feedback.kind, 'wake')
+  client.setRestingPets([]); assert.deepEqual(client.getSnapshot().restingPetIds, [])
+  const result = await bridge.load()
+  result.snapshot.value.pets[0].status = 'dead'; result.snapshot.value.pets[0].care.health = 0
+  result.snapshot.value.activePetIds = []; result.snapshot.revision++
+  bridge.emit(result)
+  const dead = client.getSnapshot()
+  client.requestSleep('pet:cat'); client.requestWake('pet:cat')
+  assert.equal(client.getSnapshot(), dead)
+  client.dispose()
+  const closed = client.getSnapshot(); let notifications = 0
+  client.subscribe(() => notifications++)
+  client.requestWake('pet:cat'); client.requestSleep('pet:cat'); client.setRestingPets(['pet:cat'])
+  assert.equal(client.getSnapshot(), closed); assert.equal(notifications, 0)
+})
+test('acknowledged scene sleep changes the next online energy pulse and waking resumes consumption', async t => {
+  const clock = fakeClock(), bridge = documents(), client = new PetClient(bridge, clock.runtime)
+  t.after(() => client.dispose()); await client.start()
+  await clock.tick(); await clock.tick(); await clock.tick()
+  const before = client.getSnapshot().state.pets[0].care.energy
+  client.requestSleep('pet:cat'); client.setRestingPets(['pet:cat'])
+  await clock.tick()
+  const rested = client.getSnapshot().state.pets[0].care.energy
+  assert.ok(Math.abs(rested - (before + 20 / 60)) < 1e-8)
+  client.requestWake('pet:cat'); client.setRestingPets([])
+  await clock.tick()
+  assert.ok(Math.abs(client.getSnapshot().state.pets[0].care.energy - (rested - 8 / 60)) < 1e-8)
 })

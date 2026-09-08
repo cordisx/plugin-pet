@@ -29,6 +29,8 @@ SOFTWARE.
 
 ## @oneworks/avatar-react 1.0.0-rc.8
 
+This development checkout includes the native preset palette/coat fix from source commit `e77997f1a08ca84e0755d8cea57ed0f9fca891be`. It is a local candidate, not the registry rc.8 artifact. Exact source and integrity are recorded in `.development/README.md`.
+
 MIT License
 
 Copyright (c) 2026-present One Works contributors
