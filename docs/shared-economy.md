@@ -113,7 +113,7 @@ Pet 再从已授权账户读取订单，要求回执目标一致后才发货。�
 
 精确依赖提交与产物 SHA-256 见
 [依赖来源记录](../.development/economy-dependencies.json)。Host 的便携 SDK 按
-[精确源码构建说明](https://github.com/cordisx/cordisx/blob/69b0146c4d4b6acd411758ae4ec3005ea74d0b89/.agents/docs/sdk-source-packaging.md)
+[精确源码构建说明](https://github.com/cordisx/cordisx/blob/be2403c70664ff6624671224a405e409874d59c7/.agents/docs/sdk-source-packaging.md)
 生成；在对应 Host checkout 直接运行 `node scripts/prepare-sdk.mjs` 并传入一个
 尚不存在的绝对输出目录，无需先安装 Host 依赖。消费者正常执行 `npm ci`，不使用
 `--ignore-scripts` 掩盖缺失的运行时依赖。Linux CI 先校验受版本控制的 tarball 哈希，

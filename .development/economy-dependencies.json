@@ -5,9 +5,9 @@
     {
       "package": "cordisx",
       "repository": "https://github.com/cordisx/cordisx",
-      "sourceCommit": "69b0146c4d4b6acd411758ae4ec3005ea74d0b89",
-      "artifact": "dependencies/cordisx-69b0146.tgz",
-      "sha256": "42f655ad735fd430e6f455bbb2e8da31f5eb564c247a3c31bbb1e9774df131c4",
+      "sourceCommit": "be2403c70664ff6624671224a405e409874d59c7",
+      "artifact": "dependencies/cordisx-be2403c.tgz",
+      "sha256": "abd300ccade96d095563f95f971164838237a376655a55b7f96bdccb3bf2dd46",
       "sourceStatus": "experimental pushed provider branch; portable source SDK with complete Channel/CLIProxy bundles and shared Protocol module identity"
     },
     {
@@ -29,7 +29,13 @@
   ],
   "rebuild": {
     "economy": "checkout exact sourceCommit; npm ci --ignore-scripts; npm run build; npm pack --ignore-scripts",
-    "hostAndProtocol": "From exact Host 69b0146c4d4b6acd411758ae4ec3005ea74d0b89 checkout run node scripts/prepare-sdk.mjs /absolute/path/to/nonexistent-output; do not run npm ci first. Canonical recipe: https://github.com/cordisx/cordisx/blob/69b0146c4d4b6acd411758ae4ec3005ea74d0b89/.agents/docs/sdk-source-packaging.md. Use packages/cordisx-0.1.0-beta.2.tgz and the Protocol package from the same output; verify sdk-evidence.json hashes. Provider full owner gate and native acceptance remain separate."
+    "hostAndProtocol": "From exact Host be2403c70664ff6624671224a405e409874d59c7 checkout run node scripts/prepare-sdk.mjs /absolute/path/to/nonexistent-output; do not run npm ci first. Canonical recipe: https://github.com/cordisx/cordisx/blob/be2403c70664ff6624671224a405e409874d59c7/.agents/docs/sdk-source-packaging.md. Use packages/cordisx-0.1.0-beta.2.tgz and the Protocol package from the same output; verify sdk-evidence.json hashes. Provider full owner gate and native acceptance remain separate."
   },
-  "runtimeLimitation": "Pet 171-test owner check passed with previous Host 5101d6e. This final portable Host pin requires Linux CI validation. Native host-isolated startup previously reached a login page, then CDP discovery timed out before Pet/Keychain interaction; native retries are paused. Generation reload requires reauthorization."
+  "runtimeLimitation": "Prior Host 69b consumer Linux CI passed as recorded; the new be2403c pin requires its own Linux CI. Native host-isolated startup previously reached a login page, then CDP discovery timed out before Pet/Keychain interaction; native retries are paused. Generation reload requires reauthorization.",
+  "priorConsumerEvidence": {
+    "petCommit": "637efcdf1f487b58346e928395fe6c7ec96b449c",
+    "hostCommit": "69b0146c4d4b6acd411758ae4ec3005ea74d0b89",
+    "url": "https://github.com/cordisx/plugin-pet/actions/runs/34291582664",
+    "result": "pass: exact artifact hashes, normal npm ci, SDK dependency resolution, full typecheck/build/package checks and 171 tests"
+  }
 }
