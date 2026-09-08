@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'cordisx/reac
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import type { PetClient } from './pet-client.js'
 import type { PetSection } from './pet-navigation.js'
-import { petAppearance } from './pet-appearance.js'
+import { petComposerAppearance } from './pet-appearance.js'
 import { PetScene } from './pet-scene.js'
 import { petVisualMenu } from './pet-visual-menu.js'
 import { petWeightScale } from './pet-care.js'
@@ -56,7 +56,7 @@ export function createPetOverlay(client: PetClient, navigate: (section: PetSecti
     }, [handles, handleRevision, menuKey])
     const entities = useMemo(() => !state || !state.settings.visible ? [] : state.activePetIds.flatMap(id => {
       const pet = state.pets.find(item => item.id === id)
-      return pet?.status === 'alive' ? [{ id: pet.id, name: pet.name, x: pet.x, definition: petAppearance(pet), sizeScale: petWeightScale(pet) }] : []
+      return pet?.status === 'alive' ? [{ id: pet.id, name: pet.name, x: pet.x, definition: petComposerAppearance(pet), sizeScale: petWeightScale(pet) }] : []
     }), [state])
     const dragFor = useMemo(() => (id: string) => handles.get(id), [handles, handleRevision])
     if (!state || !state.settings.visible) return null

@@ -4,6 +4,7 @@ import { initialPetTraits, PET_PERSONALITIES } from './pet-traits.js'
 import { careWarning, initialPetCare, petWeightLabel } from './pet-care.js'
 import { useEffect, useLayoutEffect, useRef, useMemo, useState, useSyncExternalStore } from 'cordisx/react'
 import { Avatar } from '@oneworks/avatar-react'
+import { resolveSeededAvatarView } from '@oneworks/avatar'
 import { Button, Card, EmptyState, Select, Stack, Text } from 'cordisx/ui'
 import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct } from './pet-catalog.js'
 import type { PetProduct } from './pet-catalog.js'
@@ -185,29 +186,25 @@ function CareActions(props: Commands & { entity: PetEntity }) {
     <div className="pet-care-panel">{panel === 'devices' && <div className="pet-device-list">{PET_CATALOG.filter(item=>item.device).map(item=><DeviceControl key={item.id} {...props} item={item} />)}</div>}{panel === 'food' && <FeedingTray {...props} />}{panel === 'water' && <div className="pet-water-use"><PetFoodArt id="water" /><span title="本次恢复饮水"><Glyph kind="water" /> +{Math.min(35,100-entity.care.hydration).toFixed(0)}</span><Button variant="ghost" className="pet-care-icon" aria-label="喝水" title="喝水" disabled={busy || entity.care.hydration >= 100} onClick={() => run({type:'water',petId:entity.id})}><Glyph kind="water" /></Button></div>}{panel === 'skin' && <><div className="pet-outfit-rail">{skins.map(item => <button className="pet-outfit-choice" key={item.id} aria-pressed={skin === item.id} onClick={() => setSkin(item.id)}><Preview entity={entity} skinId={item.id} /><span>{item.name}{entity.skinId === item.id ? ' · 已穿戴' : ''}</span></button>)}</div><div className="pet-food-use"><Button disabled={busy || skin === entity.skinId} onClick={() => run({type:'equip',petId:entity.id,skinId:skin})}>{skin === entity.skinId ? '已穿戴' : '穿上这件'}</Button><Button variant="ghost" onClick={() => { if(navigation){navigation.session.filter='skin';navigation.open('shop')} }}>更多装扮</Button></div></>}{panel === 'play' && <div className="pet-inline-use"><Glyph kind="smile" /><div><strong>{PET_PERSONALITIES[entity.traits.personality].name}的{entity.name}</strong><p>{PET_PERSONALITIES[entity.traits.personality].description}</p></div><Button disabled={busy || sleeping} onClick={() => run({type:'interact',petId:entity.id})}>陪它玩</Button></div>}</div>
   </div>
 }
-function AlbumPortrait({ entity, main }: { entity: PetEntity; main: boolean }) {
-  const definition = useMemo(() => petAppearance(entity), [entity.id, entity.species, entity.skinId])
-  const pose = peekPose(entity.id)
-  const side = main ? 'bottom' : pose.side === 'bottom' ? 'right' : pose.side
-  const tint = entity.skinId.includes('orange') ? '#ffc38c' : entity.species === 'dog' ? '#d7c9ec' : entity.species === 'rabbit' ? '#d9e6c9' : '#b9d1ee'
-  return <div className="pet-album-art" data-peek={side} style={{ '--pet-album-tint': tint, '--pet-album-angle': `${main ? -5 : pose.angle}deg` } as import('cordisx/react').CSSProperties}><div className="pet-album-avatar"><Avatar definition={definition} interactive={false} autoplay={false} aria-label={`${entity.name}外观预览`} style={{ width: '100%', height: '100%' }} /></div></div>
+function AlbumPortrait({ entity }: { entity: PetEntity }) {
+  const definition = useMemo(() => {
+    const appearance = petAppearance(entity)
+    return { ...appearance, scene: { ...appearance.scene, view: { ...resolveSeededAvatarView(`pet-${entity.id}`, appearance.scene.view), roll: peekPose(entity.id).angle * Math.PI / 180 } } }
+  }, [entity.id, entity.species, entity.skinId])
+  const tint = entity.skinId.includes('orange') ? '#34253e' : entity.species === 'dog' ? '#1853cb' : entity.species === 'rabbit' ? '#f28d40' : '#7cb7f4'
+  return <div className="pet-album-art" style={{ '--pet-album-tint': tint } as import('cordisx/react').CSSProperties}><div className="pet-album-avatar"><Avatar definition={definition} interactive={false} autoplay={false} aria-label={`${entity.name}外观预览`} style={{ width: '100%', height: '100%' }} /></div></div>
 }
 function Pets(props: Commands) {
   const { state, navigation, busy } = props
   const [selected, setSelected] = useState(navigation?.session.selectedPet ?? state.mainPetId)
   const entity = state.pets.find(pet => pet.id === selected) ?? state.pets[0]
   const gallery = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const strip = gallery.current
-    const card = strip?.querySelector<HTMLElement>('[aria-pressed=true]')
-    if (strip && card) strip.scrollTo({ left: card.offsetLeft + card.offsetWidth / 2 - strip.clientWidth / 2, behavior: 'instant' })
-  }, [entity?.id])
   if (!entity) return <EmptyState title="还没有宠物" description="前往商店领养一位伙伴。" />
   const alive = entity.status === 'alive'
   const active = state.activePetIds.includes(entity.id)
   const warning = alive ? careWarning(entity.care) : entity.status === 'dead' ? '已逝去' : '已安葬'
   return <div className="pet-album" data-reduced-motion={state.settings.reducedMotion}>
-    <div ref={gallery} className="pet-album-gallery" role="group" aria-label="选择宠物">{state.pets.map((pet,index) => <button type="button" className="pet-album-portrait" key={pet.id} aria-pressed={entity.id === pet.id} onClick={() => { setSelected(pet.id); if (navigation) navigation.session.selectedPet = pet.id }}><AlbumPortrait entity={pet} main={pet.id === state.mainPetId} /><span className="pet-album-number" aria-hidden="true">{String(index + 1).padStart(2,'0')}</span>{pet.id === state.mainPetId && <span className="pet-album-main">★ 主宠</span>}<span className="pet-album-name">{pet.name}</span>{pet.status !== 'alive' && <span className="pet-album-status">{pet.status === 'dead' ? '已逝去' : '已安葬'}</span>}</button>)}</div>
+    <div ref={gallery} className="pet-album-gallery" role="group" aria-label="选择宠物">{state.pets.map((pet) => <button type="button" className="pet-album-portrait" key={pet.id} aria-label={`${pet.name}${pet.id === state.mainPetId ? "，主宠" : ""}`} title={pet.name} aria-pressed={entity.id === pet.id} onClick={() => { setSelected(pet.id); if (navigation) navigation.session.selectedPet = pet.id }}><AlbumPortrait entity={pet} />{pet.status !== 'alive' && <span className="pet-album-status">{pet.status === 'dead' ? '已逝去' : '已安葬'}</span>}</button>)}</div>
     <section className="pet-album-care" aria-label="选中宠物"><div className="pet-album-summary"><button type="button" className="pet-album-selected-name" aria-label={`查看${entity.name}详情`} onClick={() => { if (navigation) { navigation.session.selectedPet = entity.id; navigation.open('pet-detail') } }}>{entity.name}</button><span className="pet-album-stat" title="亲密度" aria-label={`亲密度 ${entity.affinity}`}><Glyph kind="heart" /> {entity.affinity}</span><span className="pet-album-stat" title="饱食度" aria-label={`饱食度 ${Math.round(entity.care.fullness)}`}><Glyph kind="food" /> {Math.round(entity.care.fullness)}</span></div>
       {warning !== '状态良好' && <Text tone={alive ? 'muted' : 'danger'}>{warning}</Text>}
       <CareActions key={entity.id} {...props} entity={entity} />
@@ -343,23 +340,14 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       .pet-product-scroll{min-height:0;flex:1;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
       .pet-product-actions{flex:none;display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid color-mix(in srgb,currentColor 12%,transparent)}
       .pet-content[data-section=product-detail],.pet-content[data-section=bag-detail]{overflow:hidden}
-      .pet-album{container-type:inline-size;--pet-album-accent:#ed7335;--pet-main-width:min(50cqw,440px,max(240px,calc(100dvh - 540px)))}
-      .pet-album-gallery{position:relative;display:flex;align-items:end;gap:22px;overflow-x:auto;overflow-y:hidden;padding:6px 0 24px;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:thin}
-      .pet-album-gallery::before,.pet-album-gallery::after{content:"";flex:0 0 calc((100% - var(--pet-main-width))/2 - 22px)}
-      .pet-album-portrait{position:relative;flex:0 0 min(26cqw,240px);min-width:0;aspect-ratio:1;height:auto;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;scroll-snap-align:center}
-      .pet-album-portrait[aria-pressed=true]{flex-basis:var(--pet-main-width);height:auto;aspect-ratio:1}
-      .pet-album-portrait:focus-visible{outline:3px solid var(--pet-album-accent);outline-offset:4px;border-radius:18px}
-      .pet-album-art{position:absolute;inset:0;overflow:hidden;border-radius:20px;background:var(--pet-album-tint);isolation:isolate}
-      .pet-album-portrait[aria-pressed=true] .pet-album-art{outline:2px solid var(--pet-album-accent);outline-offset:-2px}
+      .pet-album{container-type:inline-size;--pet-album-accent:#f16b36}
+      .pet-album-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:min(100%,480px);margin-inline:auto;padding:4px;box-sizing:border-box}
+      .pet-album-portrait{position:relative;min-width:0;width:100%;aspect-ratio:1;padding:0;border:0;border-radius:16px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+      .pet-album-portrait:focus-visible{outline:2px solid var(--pet-album-accent);outline-offset:3px}
+      .pet-album-art{position:absolute;inset:0;overflow:hidden;border-radius:16px;background:var(--pet-album-tint);isolation:isolate;outline:1px solid color-mix(in srgb,currentColor 16%,transparent);outline-offset:-1px}
+      .pet-album-portrait[aria-pressed=true] .pet-album-art{outline:3px solid var(--pet-album-accent);outline-offset:-3px}
       .pet-album-avatar{position:absolute;inset:0;height:100%;width:100%;pointer-events:none}
       .pet-album-avatar>.interactive-avatar{width:100%;height:100%}
-      .pet-album-art[data-peek=bottom] .pet-album-avatar{inset:0;translate:none}
-      .pet-album-art[data-peek=left] .pet-album-avatar{inset:0;translate:none}
-      .pet-album-art[data-peek=right] .pet-album-avatar{inset:0;translate:none}
-      .pet-album-number{position:absolute;top:14px;left:16px;font-size:13px;color:#343434;opacity:.55}
-      .pet-album-main{position:absolute;right:14px;top:14px;display:flex;align-items:center;gap:6px;border-radius:18px;padding:6px 12px;background:#ed7335;color:#fff;font-size:12px;font-weight:650}
-      .pet-album-name{position:absolute;left:18px;bottom:-6px;padding:6px 14px;border-radius:3px;background:#fff9ed;color:#353128;font-size:17px;font-weight:700;transform:rotate(-4deg)}
-      .pet-album-portrait:nth-child(even) .pet-album-name{left:auto;right:18px;transform:rotate(4deg)}
       .pet-album-status{position:absolute;bottom:28px;right:12px;background:#fff9ed;color:#353128;border-radius:4px;padding:4px 8px;font-size:12px}
       .pet-album-care{width:min(100%,440px);margin-inline:auto;padding-top:18px;padding-bottom:16px}
       .pet-album-summary{display:flex;justify-content:center;align-items:center;gap:18px;flex-wrap:wrap}
@@ -380,7 +368,7 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       .pet-food-use{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 4px 0}
       .pet-food-effects{display:flex;flex-wrap:wrap;gap:14px;margin-top:7px;font-size:12px;opacity:.7}
       .pet-feeding-empty{display:flex;align-items:center;gap:16px;margin-top:18px}
-      @container(max-width:580px){.pet-album-gallery{gap:12px}.pet-album-portrait{flex-basis:145px;height:auto;aspect-ratio:1} .pet-album-gallery{--pet-main-width:min(72cqw,340px)}.pet-album-summary{gap:14px}.pet-album-selected-name{border:0;padding:0;background:none;color:inherit;font-family:inherit;font-weight:700;cursor:pointer;font-size:24px}.pet-album-actions{gap:10px}.pet-album-art[data-peek=bottom] .pet-album-avatar{inset:0;translate:none}}
+      @container(max-width:580px){.pet-album-gallery{gap:8px}.pet-album-summary{gap:14px}.pet-album-selected-name{font-size:24px}.pet-album-actions{gap:10px}}
       .pet-shelf{flex:1;height:100%;min-height:0;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:28px;grid-template-rows:minmax(0,1fr);align-items:stretch}
       .pet-shelf[data-wide=false]{grid-template-columns:minmax(0,1fr)}
       .pet-tile-grid{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;align-content:start;display:grid;grid-auto-rows:max-content;grid-template-columns:repeat(auto-fill,minmax(min(100%,112px),1fr));gap:22px 16px;align-items:start}

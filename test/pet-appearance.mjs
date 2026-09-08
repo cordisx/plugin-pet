@@ -4,7 +4,7 @@ import { build } from 'esbuild'
 import { getAvatarPalette, parseAvatarDefinition, createDefaultAvatarDefinition, resolveSeededAvatarView } from '@oneworks/avatar'
 const bundled = await build({entryPoints:['src/pet-appearance.ts','src/pet-scene-shape.ts'],bundle:true,write:false,format:'esm',platform:'node',outdir:'test-output'})
 const modules = await Promise.all(bundled.outputFiles.map(file=>import('data:text/javascript;base64,'+Buffer.from(file.text).toString('base64'))))
-const {petAppearance,PET_AVATAR_SCALE}=modules[0]
+const {petAppearance,petComposerAppearance,PET_AVATAR_SCALE}=modules[0]
 const {createPetShapeTimeline}=modules[1]
 const skins=[['cat','skin-white'],['cat','skin-orange'],['cat','skin-siamese'],['cat','skin-friend'],['dog','skin-shiba'],['dog','skin-husky'],['rabbit','skin-lop'],['rabbit','skin-dutch']]
 test('native presets and palettes own species geometry and breed materials', () => {
@@ -33,4 +33,15 @@ test('each pet keeps its native seeded pose regardless of cache insertion order 
     assert.deepEqual(petAppearance(entity,'skin-orange').scene.view,expected)
   }
   assert.notDeepEqual(petAppearance(entities[0]).scene.view,petAppearance(entities[1]).scene.view)
+})
+
+test('composer placement does not inherit the gallery crop', () => {
+  const pet={id:'cropped-pet',species:'cat',skinId:'skin-white'}
+  const gallery=petAppearance(pet)
+  const composer=petComposerAppearance(pet)
+  for(const key of ['positionX','positionY','yaw','pitch','roll']) assert.equal(composer.scene.view[key],0)
+  assert.equal(composer.scene.entity,gallery.scene.entity)
+  assert.equal(composer.scene.appearance,gallery.scene.appearance)
+  assert.equal(petComposerAppearance(pet),composer)
+  assert.notDeepEqual(gallery.scene.view,composer.scene.view)
 })

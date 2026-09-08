@@ -35,3 +35,14 @@ export function petAppearance(pet: PetEntity | PetSpecies, skinId?: string): Ava
   cache.set(key, definition)
   return definition
 }
+
+const composerCache = new WeakMap<AvatarDefinition, AvatarDefinition>()
+/** Composer seats own placement; a gallery crop must never offset the live pet. */
+export function petComposerAppearance(pet: PetEntity): AvatarDefinition {
+  const appearance = petAppearance(pet)
+  const existing = composerCache.get(appearance)
+  if (existing) return existing
+  const definition = { ...appearance, scene: { ...appearance.scene, view: { ...appearance.scene.view, positionX: 0, positionY: 0, yaw: 0, pitch: 0, roll: 0 } } }
+  composerCache.set(appearance, definition)
+  return definition
+}

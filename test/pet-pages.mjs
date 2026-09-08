@@ -98,7 +98,7 @@ test('peek framing is stable per identity and varies across pets without hiding 
   assert.ok(new Set(poses.map(pose => pose.side)).size > 1)
   assert.ok(poses.every(pose => Math.abs(pose.angle) <= 22 && pose.offset >= 36 && pose.offset <= 60))
   const html = render('pets')
-  assert.match(html,/data-peek=/)
+  assert.match(html,/aria-label="猫猫，主宠"/)
   assert.match(html,/aria-label="选中宠物"/)
   assert.doesNotMatch(html,/宠物活动区域/)
 })
