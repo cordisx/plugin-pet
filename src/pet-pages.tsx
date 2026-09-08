@@ -236,9 +236,9 @@ function Ledger({ state, usage }: { state: PetState; usage?: PetUsageStatus; nav
     {state.careHistory.filter(item => item.kind === 'death').slice().reverse().map(item => <Text key={item.key} tone="muted">{state.pets.find(entity => entity.id === item.petId)?.name} · 已逝去 · {new Date(item.at).toLocaleString()}</Text>)}
   </Stack>
 }
-function PetToolbar({ section, state, navigation }: { section: PetPageSection; state: PetState; navigation?: PetPageNavigation }) {
+function PetToolbar({ section, state, navigation, back }: { section: PetPageSection; state: PetState; navigation?: PetPageNavigation; back?: () => void }) {
   const active = section === 'product-detail' ? 'shop' : section === 'bag-detail' ? 'bag' : section === 'pet-detail' ? 'pets' : section
-  return <div className="pet-toolbar"><nav aria-label="宠物页面">{([['pets','伙伴'],['shop','商店'],['bag','背包']] as const).map(([id,label]) => <Button key={id} variant={active === id ? 'primary' : 'ghost'} aria-current={active === id ? 'page' : undefined} onClick={() => navigation?.open(id)}>{id === 'pets' ? <Glyph kind="paw" /> : id === 'shop' ? <Glyph kind="shop" /> : <Glyph kind="bag" />}{label}</Button>)}</nav><Button variant="ghost" title="宠物币 · 查看钱包" aria-label={`宠物币 ${state.wallet.balance.toLocaleString()}，查看钱包`} onClick={() => navigation?.open('ledger')}><Glyph kind="coin" /> {state.wallet.balance.toLocaleString()}</Button><Button variant="ghost" aria-label="宠物设置" title="宠物设置" onClick={() => navigation?.open('settings')}><Glyph kind="settings" /></Button></div>
+  return <div className="pet-toolbar">{back && <Button variant="ghost" className="pet-local-back" aria-label="返回上一层" onClick={back}><span aria-hidden="true">←</span> 返回</Button>}<nav aria-label="宠物页面">{([['pets','伙伴'],['shop','商店'],['bag','背包']] as const).map(([id,label]) => <Button key={id} variant={active === id ? 'primary' : 'ghost'} aria-current={active === id ? 'page' : undefined} onClick={() => navigation?.open(id)}>{id === 'pets' ? <Glyph kind="paw" /> : id === 'shop' ? <Glyph kind="shop" /> : <Glyph kind="bag" />}{label}</Button>)}</nav><Button variant="ghost" title="宠物币 · 查看钱包" aria-label={`宠物币 ${state.wallet.balance.toLocaleString()}，查看钱包`} onClick={() => navigation?.open('ledger')}><Glyph kind="coin" /> {state.wallet.balance.toLocaleString()}</Button><Button variant="ghost" aria-label="宠物设置" title="宠物设置" onClick={() => navigation?.open('settings')}><Glyph kind="settings" /></Button></div>
 }
 export function PetPage({ client, section: initialSection, navigation: routeNavigation }: { client: PetClient; section: PetPageSection; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
   const [section, setSection] = useState(initialSection)
@@ -248,7 +248,7 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
   const navigation = useMemo(() => routeNavigation && ({
     session: routeNavigation.session,
     open(next: PetPageSection) {
-      if (['pets', 'shop', 'bag'].includes(initialSection) && ['pets', 'shop', 'bag'].includes(next)) {
+      if (['pets', 'shop', 'bag'].includes(initialSection)) {
         scrollPositions.current.set(section, [content.current?.scrollTop ?? 0, content.current?.querySelector('.pet-tile-grid')?.scrollTop ?? 0])
         setSection(next)
       } else routeNavigation.open(next)
@@ -277,6 +277,7 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
     <style>{`
       .pet-page-layout{position:relative;isolation:isolate}
       .pet-toolbar{flex:none;display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding:2px 0 10px}
+      .pet-local-back{margin-inline-end:auto}
       .pet-toolbar nav{display:flex;align-items:center;gap:6px;margin-inline-end:12px}
       .pet-content{flex:1;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
       .pet-content[data-section=shop],.pet-content[data-section=bag]{overflow:hidden;display:flex;flex-direction:column}
@@ -384,7 +385,7 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       .pet-name-input:focus-visible{outline:2px solid currentColor;outline-offset:2px}
       .pet-name-input:disabled{opacity:.55}
     `}</style>
-    <PetToolbar section={section} state={snapshot.state} navigation={navigation} />
+    <PetToolbar section={section} state={snapshot.state} navigation={navigation} back={['pets', 'shop', 'bag'].includes(initialSection) && !['pets', 'shop', 'bag'].includes(section) ? () => navigation?.open(section === 'product-detail' || section === 'ledger' ? 'shop' : section === 'bag-detail' ? 'bag' : 'pets') : undefined} />
     {snapshot.error && !notice && <Text role="alert" tone="danger">{snapshot.error}</Text>}
     {notice && <div className="pet-toast" role={notice.error ? 'alert' : 'status'}><span>{notice.error ? '!' : '✓'}</span><span>{notice.message}</span>{notice.error && notice.command && <Button variant="ghost" disabled={snapshot.busy} onClick={() => run(notice.command!)}>重试</Button>}<Button variant="ghost" aria-label="关闭提示" onClick={() => setNotice(null)}>×</Button></div>}
     <div ref={content} className="pet-content" data-section={section}>
