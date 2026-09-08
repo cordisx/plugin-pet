@@ -1,3 +1,8 @@
+import type { WorkRewardStatus } from './pet-work-rewards.js'
+import { PetWallet } from './pet-economy-view.js'
+import { petCanAfford, petVisibleBalance } from './pet-balance.js'
+import type { PetEconomyStatus } from './pet-economy.js'
+import { petEconomyLocked } from './pet-economy-state.js'
 import { usePetPreviewCache } from './pet-preview-cache.js'
 import { petNativeSnapshot } from './pet-native-snapshots.js'
 import { PET_SPECIES, PET_SPECIES_IDS, PET_SPECIES_GROUPS } from './pet-species.js'
@@ -21,7 +26,7 @@ import { PetFoodArt } from './pet-food-art.js'
 export type PetPageSection = 'shop' | 'pets' | 'bag' | 'settings' | 'ledger' | 'pet-detail' | 'product-detail' | 'bag-detail'
 export type PetPageSession = { filter: string; hideOwned: boolean; selectedPet?: string; product?: string; anchor?: string; group?: string; species?: string; page?: number; detailTab?: 'status' | 'attributes' | 'actions'; carePanel?: 'food' | 'water' | 'skin' | 'play' | 'devices' }
 export type PetPageNavigation = { session: PetPageSession; open: (section: PetPageSection) => void }
-type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void; usage?: PetUsageStatus; navigation?: PetPageNavigation; sleep?: (id: string) => void; wake?: (id: string) => void; restingPetIds?: string[] }
+type Commands = { state: PetState; busy: boolean; run: (command: PetCommand) => void; usage?: PetUsageStatus; economy?: PetEconomyStatus; migrate?: () => void; refresh?: () => void; connect?: () => void; navigation?: PetPageNavigation; sleep?: (id: string) => void; wake?: (id: string) => void; restingPetIds?: string[] }
 const Preview = memo(function Preview({ entity, skinId }: { entity: PetEntity; skinId?: string }) {
   return <StaticPortrait entity={entity} skinId={skinId} />
 }, (a,b) => samePortrait(a.entity,b.entity) && a.skinId === b.skinId)
@@ -50,17 +55,6 @@ function productEntity(product: PetProduct): PetEntity {
   const species = product.species ?? 'cat'
   return { sex: 'female', attributes: initialPetAttributes(product.id), exploration: { onlineMs: 0, eventIndex: 0, events: [] }, traits: initialPetTraits(product.id), id: `preview:${product.id}`, species, skinId: product.kind === 'skin' ? product.id : PET_DEFAULT_SKINS[species], name: product.name, affinity: 0, x: .5, status: 'alive', care: initialPetCare(species) }
 }
-function Wallet({ state, usage }: { state: PetState; usage?: PetUsageStatus; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
-  return <Stack gap="small">
-    <Text><strong>{state.wallet.balance.toLocaleString()} 宠物币</strong></Text>
-    {usage?.status === 'ready' ? <>
-      <Text tone="muted">每新增 {PET_ECONOMY.tokensPerCoin.toLocaleString()} Token 获得 1 宠物币，不足部分会保留。</Text>
-      <Text tone="muted">仅统计启用后本机可确认的使用量，不包含全部历史或其他设备。最近同步：{new Date(usage.observedThrough).toLocaleTimeString()}。</Text>
-    </> : <Text tone="muted">{usage?.status === 'initializing' ? '正在同步使用奖励…'
-      : usage?.status === 'unavailable' && usage.reason === 'permission-denied' ? '使用奖励未开启。可在插件权限中管理。'
-      : '使用奖励暂不可用，恢复后会继续同步。免费外观、欢迎点心和相伴解锁仍可体验。'}</Text>}
-  </Stack>
-}
 function ownedProduct(state: PetState, item: PetProduct) {
   return item.kind === 'pet' ? !!item.species && state.unlockedSpecies.includes(item.species) : item.kind === 'skin' ? state.ownedSkinIds.includes(item.id) : item.device ? (state.itemInventory[item.id] ?? 0) > 0 : false
 }
@@ -68,16 +62,16 @@ function Glyph({ kind }: { kind: 'tree' | 'farm' | 'bird' | 'water' | 'smile' | 
   const paths = { tree: 'm12 2-7 8h4l-5 7h6v5h4v-5h6l-5-7h4Z', farm: 'm3 10 9-7 9 7v11H3ZM8 21v-8h8v8m-8-8 8 8m0-8-8 8', bird: 'M4 20C4 8 11 2 20 3c1 9-5 15-16 17m0 0 11-11M8 16v-5m4 1h5', water: 'M12 2C8 8 4 11 4 15a8 8 0 0 0 16 0c0-4-4-7-8-13Z', smile: 'M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0M8 9h.01M16 9h.01M7 14q5 7 10 0', brain: 'M12 21V3M12 5C3-4 0 13 7 13M7 13c-7 5 3 13 5 5M12 5c9-9 12 8 5 8m0 0c7 5-3 13-5 5', luck: 'm12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z', more: 'M4 12h.01M12 12h.01M20 12h.01', edit: 'm15 4 5 5M4 15l12-12 5 5L9 20l-6 1Z', back: 'm14 5-7 7 7 7M7 12h14', settings: 'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1ZM15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0', shop: 'M3 10h18l-2-7H5ZM4 10v11h16V10M9 21v-7h6v7', bag: 'M4 6h16v15H4ZM8 6V4a4 4 0 0 1 8 0v2M8 10v2M16 10v2', moon: 'M20 15A9 9 0 0 1 9 3a9 9 0 1 0 11 12Z', paw: 'M8 14c-4 7 12 7 8 0l-4-4Z M5 6v2 M10 3v2 M15 3v2 M20 6v2', coin: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M15 8h-4a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4H9 M12 6v12', food: 'M3 11h18c0 11-18 11-18 0Z M8 3v4 M13 2v5 M18 3v4', heart: 'M12 20 3 11C-2 2 10 1 12 7c2-6 14-5 9 4Z', energy: 'M14 2 5 14h7l-2 8 9-13h-7Z', outfit: 'M8 3 2 7l3 5 3-2v11h8V10l3 2 3-5-6-4c0 5-8 5-8 0Z', arrow: 'M8 4l8 8-8 8' }
   return <svg className="pet-glyph" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[kind]} /></svg>
 }
-function ProductActions({ item, state, busy, run, quantity = 1 }: Commands & { item: PetProduct; quantity?: number }) {
+function ProductActions({ item, state, busy, run, economy, quantity = 1 }: Commands & { item: PetProduct; quantity?: number }) {
   const owned = ownedProduct(state, item)
   if (owned && item.kind === 'pet' && item.species) {
     const price = petAdoptionPrice(item.species)
-    return <Button variant="primary" disabled={busy || state.wallet.balance < price} title={state.wallet.balance < price ? '宠物币不足' : '领养一只拥有独立名字和属性的新伙伴'} onClick={() => run({type:'adopt',species:item.species!})}><Glyph kind="paw" />再领养一只 · <Glyph kind="coin" />{price}</Button>
+    return <Button variant="primary" disabled={busy || !petCanAfford(state, price, economy)} title={!petCanAfford(state, price, economy) ? '宠物币不足' : '领养一只拥有独立名字和属性的新伙伴'} onClick={() => run({type:'adopt',species:item.species!})}><Glyph kind="paw" />再领养一只 · <Glyph kind="coin" />{price}</Button>
   }
   if (owned) return null
   const applicable = item.kind !== 'skin' || state.pets.some(pet => pet.species === item.species && pet.affinity >= (item.requiredAffinity ?? 0))
   const affinity = Math.max(0, ...state.pets.map(pet => pet.affinity))
-  const reason = owned ? '已拥有' : !applicable ? '需要适用宠物及亲密度' : state.wallet.balance < item.price * quantity ? '宠物币不足' : ''
+  const reason = owned ? '已拥有' : !applicable ? '需要适用宠物及亲密度' : !petCanAfford(state, item.price * quantity, economy) ? '宠物币不足' : ''
   return <Stack gap="small"><Stack direction="row" wrap gap="small">
     <Button disabled={busy || !!reason} title={reason || undefined} onClick={() => run({ type: 'buy', productId: item.id, quantity })}>{owned ? '已拥有' : item.price === 0 ? '领取' : item.kind === 'pet' ? '领养' : '购买'}</Button>
     {item.kind === 'pet' && item.requiredAffinity && !owned && <Button disabled={busy || affinity < item.requiredAffinity} onClick={() => run({ type: 'claim', productId: item.id })}>相伴解锁 {Math.min(affinity, item.requiredAffinity)}/{item.requiredAffinity}</Button>}
@@ -181,7 +175,7 @@ function Afterlife({ entity, state, busy, run }: Commands & { entity: PetEntity 
   </Stack></Stack>
 }
 function PetCard(props: Commands & { entity: PetEntity; selectPet: (id: string) => void }) {
-  const { entity, state, busy, run } = props
+  const { entity, state, busy, run, economy } = props
   const [tab, setTab] = useState(props.navigation?.session.detailTab ?? 'status')
   const [name, setName] = useState(entity.name)
   const [editing, setEditing] = useState(false)
@@ -233,7 +227,7 @@ function FeedingTray({ entity, state, busy, run, navigation }: Commands & { enti
   </div>
 }
 export function PetWardrobe(props: Commands & { entity: PetEntity }) {
-  const { entity, state, busy, run } = props
+  const { entity, state, busy, run, economy } = props
   const skins = PET_CATALOG.filter(item => item.kind === 'skin' && item.species === entity.species)
   const [selected, setSelected] = useState(entity.skinId)
   const skin = skins.find(item => item.id === selected) ?? skins[0]
@@ -241,7 +235,7 @@ export function PetWardrobe(props: Commands & { entity: PetEntity }) {
   const owned = state.ownedSkinIds.includes(skin.id)
   const applicableAffinity = Math.max(0, ...state.pets.filter(pet => pet.species === entity.species).map(pet => pet.affinity))
   const requiredAffinity = skin.requiredAffinity ?? 0
-  const reason = applicableAffinity < requiredAffinity ? `需要亲密度 ${requiredAffinity} · 当前 ${applicableAffinity}` : state.wallet.balance < skin.price ? '宠物币不足' : ''
+  const reason = applicableAffinity < requiredAffinity ? `需要亲密度 ${requiredAffinity} · 当前 ${applicableAffinity}` : !petCanAfford(state, skin.price, economy) ? '宠物币不足' : ''
   return <div className="pet-wardrobe"><div className="pet-outfit-rail" role="group" aria-label="选择皮肤">{skins.map(item => {
     const unlocked = state.ownedSkinIds.includes(item.id)
     return <button type="button" className="pet-outfit-choice" key={item.id} aria-pressed={skin.id === item.id} aria-label={`${item.name}，${entity.skinId === item.id ? '已穿戴' : unlocked ? '已解锁' : '未解锁'}`} onClick={() => setSelected(item.id)}><Preview entity={entity} skinId={item.id} /><span>{item.name}</span><span>{entity.skinId === item.id ? '已穿戴' : unlocked ? '已解锁' : item.price ? <><Glyph kind="coin" /> {item.price}</> : item.requiredAffinity ? <><Glyph kind="heart" /> {item.requiredAffinity}</> : '免费'}</span></button>
@@ -360,21 +354,21 @@ function Settings({ state, busy, run }: Commands) {
     <Text tone="muted">减少动态效果会停用滚动、跳跃和大幅形变。离线时暂停饱食度、精力和健康变化；在线长期饥饿可能导致死亡。</Text>
   </Stack>
 }
-function Ledger({ state, usage }: { state: PetState; usage?: PetUsageStatus; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
-  const records = state.receipts.filter(item => ['adopt', 'buy', 'claim', 'feed', 'water', 'forage', 'usage', 'usage-baseline', 'bury', 'revive'].includes(item.kind)).slice().reverse()
+function Ledger({ state, usage, economy, migrate, refresh, connect, workRewards, connectSponsor }: { workRewards?: WorkRewardStatus; connectSponsor?: () => void; state: PetState; usage?: PetUsageStatus; economy?: PetEconomyStatus; migrate?: () => void; refresh?: () => void; connect?: () => void; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
+  const records = state.receipts.filter(item => ['adopt', 'buy', 'claim', 'feed', 'water', 'forage', 'usage', 'usage-baseline', 'bury', 'revive', 'device-upgrade'].includes(item.kind)).slice().reverse()
   return <Stack gap="large">
-    <Wallet state={state} usage={usage} />
-    <Text tone="muted">累计获得 {state.wallet.earned} · 累计花费 {state.wallet.spent}</Text>
+    <PetWallet workRewards={workRewards} connectSponsor={connectSponsor} state={state} usage={usage} economy={economy} migrate={migrate} refresh={refresh} connect={connect} />
+    <Text tone="muted">{state.economy ? '旧钱包历史 · ' : ''}累计获得 {state.wallet.earned} · 累计花费 {state.wallet.spent}</Text>
     {!records.length ? <EmptyState title="还没有收支记录" description="购买、喂食和相伴解锁会记录在这里。" /> : records.map(item => <Stack key={item.key} direction="row" justify="space-between" gap="medium">
       <Stack gap="small"><Text>{item.detail}</Text><Text tone="muted">{new Date(item.at).toLocaleString()}</Text></Stack>
-      <Text>{item.coins > 0 ? '+' : ''}{item.coins} 宠物币</Text>
+      <Text>{state.economy?.receipts.some(receipt => receipt.key === item.key) ? `−${state.economy.receipts.find(receipt => receipt.key === item.key)!.total}` : `${item.coins > 0 ? '+' : ''}${item.coins}`} 宠物币</Text>
     </Stack>)}
     {state.careHistory.filter(item => item.kind === 'death').slice().reverse().map(item => <Text key={item.key} tone="muted">{state.pets.find(entity => entity.id === item.petId)?.name} · 已逝去 · {new Date(item.at).toLocaleString()}</Text>)}
   </Stack>
 }
-function PetToolbar({ section, state, navigation, back }: { section: PetPageSection; state: PetState; navigation?: PetPageNavigation; back?: () => void }) {
+function PetToolbar({ section, state, economy, navigation, back }: { section: PetPageSection; state: PetState; economy?: PetEconomyStatus; navigation?: PetPageNavigation; back?: () => void }) {
   const active = section === 'product-detail' ? 'shop' : section === 'bag-detail' ? 'bag' : section === 'pet-detail' ? 'pets' : section
-  return <div className="pet-toolbar">{back && <Button variant="ghost" className="pet-local-back" aria-label="返回上一层" onClick={back}><Glyph kind="back" /></Button>}<nav aria-label="宠物页面">{([['pets','伙伴'],['shop','商店'],['bag','背包']] as const).map(([id,label]) => <Button key={id} variant={active === id ? 'primary' : 'ghost'} aria-current={active === id ? 'page' : undefined} onClick={() => navigation?.open(id)}>{id === 'pets' ? <Glyph kind="paw" /> : id === 'shop' ? <Glyph kind="shop" /> : <Glyph kind="bag" />}{label}</Button>)}</nav><span className="pet-nav-divider" aria-hidden="true" /><Button variant="ghost" title="宠物币 · 查看钱包" aria-label={`宠物币 ${state.wallet.balance.toLocaleString()}，查看钱包`} onClick={() => navigation?.open('ledger')}><Glyph kind="coin" /> {state.wallet.balance.toLocaleString()}</Button><span className="pet-nav-divider" aria-hidden="true" /><Button variant="ghost" aria-label="宠物设置" title="宠物设置" onClick={() => navigation?.open('settings')}><Glyph kind="settings" /></Button></div>
+  return <div className="pet-toolbar">{back && <Button variant="ghost" className="pet-local-back" aria-label="返回上一层" onClick={back}><Glyph kind="back" /></Button>}<nav aria-label="宠物页面">{([['pets','伙伴'],['shop','商店'],['bag','背包']] as const).map(([id,label]) => <Button key={id} variant={active === id ? 'primary' : 'ghost'} aria-current={active === id ? 'page' : undefined} onClick={() => navigation?.open(id)}>{id === 'pets' ? <Glyph kind="paw" /> : id === 'shop' ? <Glyph kind="shop" /> : <Glyph kind="bag" />}{label}</Button>)}</nav><span className="pet-nav-divider" aria-hidden="true" /><Button variant="ghost" title="宠物币 · 查看钱包" aria-label={`宠物币 ${(petVisibleBalance(state, economy)?.toLocaleString() ?? '待同步')}，查看钱包`} onClick={() => navigation?.open('ledger')}><Glyph kind="coin" /> {(petVisibleBalance(state, economy)?.toLocaleString() ?? '待同步')}</Button><span className="pet-nav-divider" aria-hidden="true" /><Button variant="ghost" aria-label="宠物设置" title="宠物设置" onClick={() => navigation?.open('settings')}><Glyph kind="settings" /></Button></div>
 }
 export function PetPage({ client, section: initialSection, navigation: routeNavigation }: { client: PetClient; section: PetPageSection; navigation?: PetPageNavigation; sleep?: (id: string) => void }) {
   const [section, setSection] = useState(initialSection)
@@ -408,7 +402,7 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
     void client.execute(command).then(() => { const error = client.getSnapshot().error; setNotice(error ? { message: error, error: true, command } : { message: command.type === 'water' ? '喝过水啦' : command.type === 'interact' ? '陪伴已回应' : command.type === 'feed' ? '喂食成功' : command.type === 'equip' ? '已换上新装扮' : command.type === 'buy' || command.type === 'claim' ? '已放入背包或宠物列表' : '已保存' }) }).catch(error => setNotice({ message: error instanceof Error ? error.message : '操作失败，请重试', error: true, command }))
   }
   if (!snapshot.state) return <EmptyState title={snapshot.error ? '暂时无法读取宠物' : '正在准备宠物…'} description={snapshot.error ?? undefined} />
-  const props = { state: snapshot.state, busy: snapshot.busy, usage: snapshot.usage, run, navigation, sleep: client.requestSleep, wake: client.requestWake, restingPetIds: snapshot.restingPetIds }
+  const props = { workRewards: snapshot.workRewards, connectSponsor: snapshot.canConnectSponsor ? client.connectSponsor : undefined, state: snapshot.state, busy: snapshot.busy || petEconomyLocked(snapshot.state), usage: snapshot.usage, economy: snapshot.economy, migrate: client.migrateEconomy, refresh: client.refreshEconomy, connect: snapshot.canConnectEconomy ? client.connectEconomy : undefined, run, navigation, sleep: client.requestSleep, wake: client.requestWake, restingPetIds: snapshot.restingPetIds }
   return <Stack fill gap="medium" className="pet-page-layout" aria-busy={snapshot.busy}>
     <style>{`
       .pet-page-layout{position:relative;isolation:isolate}
@@ -541,12 +535,12 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       .pet-care-panel{margin-top:12px;min-height:132px}.pet-care-panel .pet-feeding-tray{margin-top:0;padding:8px;border:0}.pet-inline-use{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:color-mix(in srgb,currentColor 4%,transparent)}.pet-inline-use>div{flex:1}.pet-inline-use p{font-size:12px;opacity:.7}
       .pet-outfit-rail{display:flex;gap:10px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px}.pet-outfit-choice{flex:0 0 120px;color:inherit;background:transparent;border:1px solid transparent;padding:4px;border-radius:12px;cursor:pointer}.pet-outfit-choice[aria-pressed=true]{border-color:#ed965a}.pet-outfit-choice .pet-preview-stage{height:auto;aspect-ratio:1;--pet-portrait-radius:12px}.pet-outfit-choice .pet-page-preview{max-width:110px;max-height:110px}.pet-outfit-choice span{font-size:11px}.pet-exploration{font-size:12px;opacity:.7}
     `}</style>
-    <PetToolbar section={section} state={snapshot.state} navigation={navigation} back={['pets', 'shop', 'bag'].includes(initialSection) && !['pets', 'shop', 'bag'].includes(section) ? () => navigation?.open(section === 'product-detail' || section === 'ledger' ? 'shop' : section === 'bag-detail' ? 'bag' : 'pets') : undefined} />
+    <PetToolbar section={section} state={snapshot.state} economy={snapshot.economy} navigation={navigation} back={['pets', 'shop', 'bag'].includes(initialSection) && !['pets', 'shop', 'bag'].includes(section) ? () => navigation?.open(section === 'product-detail' || section === 'ledger' ? 'shop' : section === 'bag-detail' ? 'bag' : 'pets') : undefined} />
     {snapshot.error && !notice && <Text role="alert" tone="danger">{snapshot.error}</Text>}
     {notice && <div className="pet-toast" role={notice.error ? 'alert' : 'status'}><span>{notice.error ? '!' : '✓'}</span><span>{notice.message}</span>{notice.error && notice.command && <Button variant="ghost" disabled={snapshot.busy} onClick={() => run(notice.command!)}>重试</Button>}<Button variant="ghost" aria-label="关闭提示" onClick={() => setNotice(null)}>×</Button></div>}
     <div ref={content} className="pet-content" data-section={section}>
     {section === 'shop' ? <Shop {...props} /> : section === 'pets' ? <Pets {...props} /> : section === 'bag' ? <Bag {...props} />
-      : section === 'pet-detail' ? <PetDetail {...props} /> : section === 'product-detail' || section === 'bag-detail' ? <ProductDetail {...props} inventory={section === 'bag-detail'} /> : section === 'settings' ? <Settings {...props} /> : <Ledger state={snapshot.state} usage={snapshot.usage} />}
+      : section === 'pet-detail' ? <PetDetail {...props} /> : section === 'product-detail' || section === 'bag-detail' ? <ProductDetail {...props} inventory={section === 'bag-detail'} /> : section === 'settings' ? <Settings {...props} /> : <Ledger {...props} />}
     </div>
   </Stack>
 }

@@ -33,12 +33,13 @@ test('shop renders real avatar definitions and unavailable income without offeri
   assert.match(html, /宠物币不足/)
   assert.doesNotMatch(html, /充值|领取宠物币|测试余额/)
 })
-test('wallet distinguishes permission denial from connected partial coverage', () => {
+test('wallet distinguishes permission denial and attributed work without promising unconfigured backpay', () => {
   const denied = render('ledger', createPetState(), false, { status: 'unavailable', reason: 'permission-denied' })
   assert.match(denied, /使用奖励未开启/)
   const ready = render('ledger', createPetState(), false, { status: 'ready', coverage: 'partial', observedThrough: 1000, eligibleTokens: 100000 })
-  assert.match(ready, /不包含全部历史或其他设备/)
-  assert.match(ready, /最近同步/)
+  assert.match(ready, /仅统计可归因的正常根任务工作/)
+  assert.match(ready, /游戏、分叉、子任务和未知来源不计入/)
+  assert.match(ready, /期间用量不补发/)
   assert.doesNotMatch(ready, /奖励暂不可用/)
 })
 test('overview keeps care forms in a secondary page and bag shows owned inventory', () => {

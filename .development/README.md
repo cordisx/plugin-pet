@@ -12,3 +12,10 @@ Pet consumes `@oneworks/avatar-react` through `dependencies/avatar-react-a06ba84
 This is a package built from merged source, **not** an npm registry publication of Avatar React rc.9. The file dependency and lockfile identify its actual artifact. The former `f1a366c` feature-branch tarball has been removed. Machine-readable provenance and upstream validation are in [SOURCE.json](SOURCE.json).
 
 The merged renderer includes native preset/breed palette and coat resolution, bounded scene caching and a renderer-only entry. Keep the precise source record when integrating this checkout. Publishing another Pet release remains a separate delivery step requiring compatible dependency revisions and full package verification.
+
+## Experimental shared economy
+
+The shared-economy dependency set and its build provenance are recorded in
+[economy-dependencies.json](economy-dependencies.json). This separate experiment
+does not change the merged Avatar dependency above. Runtime/native availability
+and source/SDK test results are separate evidence.

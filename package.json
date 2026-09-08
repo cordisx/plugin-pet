@@ -11,7 +11,9 @@
     "README.zh-Hans.md",
     "docs/pet-system.md",
     "cordisx-package.json",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "docs/shared-economy.md",
+    "economy/pet-catalog.json"
   ],
   "main": "./dist/runtime/module.js",
   "types": "./dist/types/plugin-composer-animal.d.ts",
@@ -32,17 +34,23 @@
     "prepack": "npm run build"
   },
   "devDependencies": {
+    "@cordisx/protocol": "file:.development/dependencies/cordisx-protocol-465c444.tgz",
     "@deepseek-ai/cordis": "4.0.1",
-    "cordisx": "github:cordisx/cordisx#b75fa2c6f9563924feca271242e2709c136033a3",
+    "@deepseek-ai/schemastery": "3.18.1",
+    "cordisx": "file:.development/dependencies/cordisx-be2403c.tgz",
     "esbuild": "0.28.2",
     "typescript": "^5.9.2",
     "vite": "8.2.2"
   },
   "engines": {
-    "node": ">=22.19"
+    "node": ">=24.14"
   },
   "dependencies": {
+    "@cordisx/economy": "file:.development/dependencies/cordisx-economy-5d688fc.tgz",
     "@oneworks/avatar": "1.0.0-rc.9",
     "@oneworks/avatar-react": "file:.development/dependencies/avatar-react-a06ba84-rc9.tgz"
+  },
+  "overrides": {
+    "@cordisx/protocol": "$@cordisx/protocol"
   }
 }

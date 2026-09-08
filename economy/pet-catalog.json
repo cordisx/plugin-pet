@@ -1,0 +1,1376 @@
+[
+  {
+    "id": "pet-cat",
+    "title": "猫猫",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-dog",
+    "title": "小狗",
+    "price": 150,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-rabbit",
+    "title": "兔兔",
+    "price": 200,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-alpaca",
+    "title": "羊驼",
+    "price": 400,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-bear",
+    "title": "熊熊",
+    "price": 400,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-beaver",
+    "title": "河狸",
+    "price": 280,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-bun",
+    "title": "团子",
+    "price": 300,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-capybara",
+    "title": "水豚",
+    "price": 280,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-cloud",
+    "title": "云朵",
+    "price": 300,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-cow",
+    "title": "奶牛",
+    "price": 400,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-chick",
+    "title": "小鸡",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-chinchilla",
+    "title": "龙猫",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-deer",
+    "title": "小鹿",
+    "price": 280,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-duck",
+    "title": "鸭鸭",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-ferret",
+    "title": "雪貂",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-fox",
+    "title": "狐狸",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-goose",
+    "title": "鹅鹅",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-hamster",
+    "title": "仓鼠",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-hedgehog",
+    "title": "刺猬",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-lion",
+    "title": "狮子",
+    "price": 400,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-monkey",
+    "title": "猴子",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-otter",
+    "title": "水獭",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-pig",
+    "title": "小猪",
+    "price": 280,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-guinea-pig",
+    "title": "豚鼠",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-owl",
+    "title": "猫头鹰",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-parrot",
+    "title": "鹦鹉",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-penguin",
+    "title": "企鹅",
+    "price": 280,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-seal",
+    "title": "海豹",
+    "price": 400,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-sheep",
+    "title": "绵羊",
+    "price": 280,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-squirrel",
+    "title": "松鼠",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-sun",
+    "title": "小太阳",
+    "price": 300,
+    "namespace": "pet"
+  },
+  {
+    "id": "pet-tiger",
+    "title": "老虎",
+    "price": 400,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-white",
+    "title": "云朵白",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-orange",
+    "title": "橘子汽水",
+    "price": 60,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-siamese",
+    "title": "奶咖",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-shiba",
+    "title": "柴犬",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-husky",
+    "title": "雪原",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-lop",
+    "title": "垂耳奶糖",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-dutch",
+    "title": "黑白布丁",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-friend",
+    "title": "相伴纪念",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-alpaca-cream-alpaca",
+    "title": "奶油羊驼",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-alpaca-caramel-alpaca",
+    "title": "焦糖羊驼",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-alpaca-gray-alpaca",
+    "title": "灰羊驼",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-alpaca-alpaca-cria",
+    "title": "羊驼宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-brown-bear",
+    "title": "棕熊",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-polar-bear",
+    "title": "北极熊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-asian-black-bear",
+    "title": "亚洲黑熊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-giant-panda",
+    "title": "大熊猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-spectacled-bear",
+    "title": "眼镜熊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-sun-bear",
+    "title": "马来熊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-red-panda",
+    "title": "小熊猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-koala",
+    "title": "考拉",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-raccoon",
+    "title": "浣熊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-wombat",
+    "title": "袋熊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bear-teddy-bear",
+    "title": "泰迪熊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-beaver-north-american-beaver",
+    "title": "北美河狸",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-beaver-eurasian-beaver",
+    "title": "欧亚河狸",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-beaver-dark-beaver",
+    "title": "深色河狸",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-beaver-beaver-kit",
+    "title": "河狸宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bun-porcelain",
+    "title": "瓷白",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bun-peach",
+    "title": "蜜桃",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-bun-cocoa",
+    "title": "可可",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-capybara-capybara",
+    "title": "原色水豚",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-capybara-sandy-capybara",
+    "title": "沙色水豚",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-capybara-dark-capybara",
+    "title": "深棕水豚",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-capybara-capybara-pup",
+    "title": "水豚宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cat-tabby",
+    "title": "狸花",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cat-gold",
+    "title": "金色",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cat-cocoa",
+    "title": "可可",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cat-russian-blue",
+    "title": "俄罗斯蓝猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cat-cow-cat",
+    "title": "奶牛猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cat-black-cat",
+    "title": "黑猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cloud-white",
+    "title": "纯白",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cloud-sky",
+    "title": "晴空",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cloud-lilac",
+    "title": "浅丁香",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cow-dairy-cow",
+    "title": "黑白奶牛",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cow-jersey-cow",
+    "title": "娟姗牛",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cow-highland-cow",
+    "title": "高地牛",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-cow-cow-calf",
+    "title": "小牛犊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chick-yellow-chick",
+    "title": "黄绒小鸡",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chick-silkie-chick",
+    "title": "丝羽乌骨鸡",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chick-barred-rock-chick",
+    "title": "芦花鸡",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chick-buff-orpington-chick",
+    "title": "黄羽奥品顿鸡",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chinchilla-gray-chinchilla",
+    "title": "灰龙猫",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chinchilla-beige-chinchilla",
+    "title": "米色龙猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chinchilla-white-chinchilla",
+    "title": "白龙猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-chinchilla-black-velvet-chinchilla",
+    "title": "黑丝绒龙猫",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-deer-sika-deer",
+    "title": "梅花鹿",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-deer-reindeer",
+    "title": "驯鹿",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-deer-white-deer",
+    "title": "白鹿",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-deer-deer-fawn",
+    "title": "小鹿宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-dog-corgi",
+    "title": "柯基",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-dog-golden-retriever",
+    "title": "金毛",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-dog-border-collie",
+    "title": "边境牧羊犬",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-dog-dalmatian",
+    "title": "大麦町",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-duck-mallard-duck",
+    "title": "绿头鸭",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-duck-pekin-duck",
+    "title": "北京鸭",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-duck-muscovy-duck",
+    "title": "番鸭",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-duck-yellow-duckling",
+    "title": "小黄鸭",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-ferret-sable-ferret",
+    "title": "黑貂色雪貂",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-ferret-albino-ferret",
+    "title": "白化雪貂",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-ferret-cinnamon-ferret",
+    "title": "肉桂雪貂",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-ferret-panda-ferret",
+    "title": "熊猫雪貂",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-fox-red-fox",
+    "title": "赤狐",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-fox-arctic-fox",
+    "title": "北极狐",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-fox-silver-fox",
+    "title": "银狐",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-fox-fennec-fox",
+    "title": "耳廓狐",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-goose-greylag-goose",
+    "title": "灰雁",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-goose-canada-goose",
+    "title": "加拿大黑雁",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-goose-snow-goose",
+    "title": "雪雁",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-goose-white-gosling",
+    "title": "小白鹅",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hamster-syrian-hamster",
+    "title": "金丝熊",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hamster-pudding-hamster",
+    "title": "布丁仓鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hamster-silver-fox-hamster",
+    "title": "银狐仓鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hamster-sapphire-hamster",
+    "title": "蓝宝石仓鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hedgehog-european-hedgehog",
+    "title": "欧洲刺猬",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hedgehog-cream-hedgehog",
+    "title": "奶油刺猬",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hedgehog-albino-hedgehog",
+    "title": "白化刺猬",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-hedgehog-cinnamon-hedgehog",
+    "title": "肉桂刺猬",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-lion-african-lion",
+    "title": "非洲狮",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-lion-lioness",
+    "title": "母狮",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-lion-white-lion",
+    "title": "白狮",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-lion-lion-cub",
+    "title": "小狮子",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-monkey-macaque",
+    "title": "猕猴",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-monkey-capuchin-monkey",
+    "title": "卷尾猴",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-monkey-golden-monkey",
+    "title": "金丝猴",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-monkey-baby-monkey",
+    "title": "猴宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-otter-sea-otter",
+    "title": "海獭",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-otter-river-otter",
+    "title": "河獭",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-otter-asian-small-clawed-otter",
+    "title": "亚洲小爪水獭",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-pig-pink-pig",
+    "title": "粉红小猪",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-pig-black-pig",
+    "title": "黑猪",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-pig-spotted-pig",
+    "title": "斑点猪",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-pig-wild-boar",
+    "title": "野猪",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-rabbit-netherland-dwarf",
+    "title": "荷兰侏儒兔",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-rabbit-himalayan-rabbit",
+    "title": "喜马拉雅兔",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-rabbit-lionhead-rabbit",
+    "title": "狮子兔",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-rabbit-english-spot",
+    "title": "英国斑点兔",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-guinea-pig-american-guinea-pig",
+    "title": "美国短毛豚鼠",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-guinea-pig-abyssinian-guinea-pig",
+    "title": "逆毛豚鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-guinea-pig-teddy-guinea-pig",
+    "title": "泰迪豚鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-guinea-pig-guinea-pig-pup",
+    "title": "豚鼠宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-owl-barn-owl",
+    "title": "仓鸮",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-owl-snowy-owl",
+    "title": "雪鸮",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-owl-great-horned-owl",
+    "title": "大角鸮",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-owl-little-owl",
+    "title": "纵纹腹小鸮",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-parrot-scarlet-macaw",
+    "title": "绯红金刚鹦鹉",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-parrot-blue-yellow-macaw",
+    "title": "蓝黄金刚鹦鹉",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-parrot-african-grey-parrot",
+    "title": "非洲灰鹦鹉",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-parrot-cockatiel",
+    "title": "玄凤鹦鹉",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-penguin-emperor-penguin",
+    "title": "帝企鹅",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-penguin-adelie-penguin",
+    "title": "阿德利企鹅",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-penguin-gentoo-penguin",
+    "title": "巴布亚企鹅",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-penguin-penguin-chick",
+    "title": "企鹅宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-seal-harbor-seal",
+    "title": "港海豹",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-seal-harp-seal",
+    "title": "竖琴海豹",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-seal-gray-seal",
+    "title": "灰海豹",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-seal-seal-pup",
+    "title": "海豹宝宝",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sheep-white-sheep",
+    "title": "白绵羊",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sheep-black-faced-sheep",
+    "title": "黑脸羊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sheep-horned-ram",
+    "title": "卷角羊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sheep-lamb",
+    "title": "羊羔",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sheep-mountain-goat",
+    "title": "山羊",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-squirrel-red-squirrel",
+    "title": "红松鼠",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-squirrel-gray-squirrel",
+    "title": "灰松鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-squirrel-chipmunk",
+    "title": "花栗鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-squirrel-black-squirrel",
+    "title": "黑松鼠",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sun-solar",
+    "title": "暖阳",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sun-gold",
+    "title": "金色",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-sun-ember",
+    "title": "余烬",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-tiger-bengal-tiger",
+    "title": "孟加拉虎",
+    "price": 0,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-tiger-white-tiger",
+    "title": "白虎",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-tiger-golden-tiger",
+    "title": "金虎",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "skin-tiger-tiger-cub",
+    "title": "小虎崽",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-snack",
+    "title": "比特脆脆",
+    "price": 5,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-meal",
+    "title": "显存糯米团",
+    "price": 12,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-feast",
+    "title": "满血火锅",
+    "price": 25,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-fish",
+    "title": "向量小鱼干",
+    "price": 10,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-chicken",
+    "title": "张量鸡块",
+    "price": 15,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-carrot",
+    "title": "线程胡萝卜",
+    "price": 6,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-berry",
+    "title": "缓存莓果",
+    "price": 8,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-pudding",
+    "title": "梯度布丁",
+    "price": 18,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-apple",
+    "title": "红苹果",
+    "price": 5,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-corn",
+    "title": "玉米棒",
+    "price": 7,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-shrimp",
+    "title": "脆脆虾",
+    "price": 13,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-egg",
+    "title": "元气蛋",
+    "price": 8,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-croissant",
+    "title": "月牙可颂",
+    "price": 12,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-riceball",
+    "title": "饭团补给",
+    "price": 14,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-watermelon",
+    "title": "冰镇西瓜",
+    "price": 6,
+    "namespace": "pet"
+  },
+  {
+    "id": "food-pancake",
+    "title": "松饼叠叠乐",
+    "price": 16,
+    "namespace": "pet"
+  },
+  {
+    "id": "item-water-dispenser",
+    "title": "自动饮水机",
+    "price": 120,
+    "namespace": "pet"
+  },
+  {
+    "id": "item-auto-feeder",
+    "title": "自动喂食器",
+    "price": 180,
+    "namespace": "pet"
+  },
+  {
+    "id": "item-reboot-core",
+    "title": "复活图腾",
+    "price": 80,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-alpaca",
+    "title": "再次领养 alpaca",
+    "price": 200,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-bear",
+    "title": "再次领养 bear",
+    "price": 200,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-beaver",
+    "title": "再次领养 beaver",
+    "price": 140,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-bun",
+    "title": "再次领养 bun",
+    "price": 150,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-capybara",
+    "title": "再次领养 capybara",
+    "price": 140,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-cat",
+    "title": "再次领养 cat",
+    "price": 30,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-cloud",
+    "title": "再次领养 cloud",
+    "price": 150,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-cow",
+    "title": "再次领养 cow",
+    "price": 200,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-chick",
+    "title": "再次领养 chick",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-chinchilla",
+    "title": "再次领养 chinchilla",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-deer",
+    "title": "再次领养 deer",
+    "price": 140,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-dog",
+    "title": "再次领养 dog",
+    "price": 75,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-duck",
+    "title": "再次领养 duck",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-ferret",
+    "title": "再次领养 ferret",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-fox",
+    "title": "再次领养 fox",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-goose",
+    "title": "再次领养 goose",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-hamster",
+    "title": "再次领养 hamster",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-hedgehog",
+    "title": "再次领养 hedgehog",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-lion",
+    "title": "再次领养 lion",
+    "price": 200,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-monkey",
+    "title": "再次领养 monkey",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-otter",
+    "title": "再次领养 otter",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-pig",
+    "title": "再次领养 pig",
+    "price": 140,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-rabbit",
+    "title": "再次领养 rabbit",
+    "price": 100,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-guinea-pig",
+    "title": "再次领养 guinea-pig",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-owl",
+    "title": "再次领养 owl",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-parrot",
+    "title": "再次领养 parrot",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-penguin",
+    "title": "再次领养 penguin",
+    "price": 140,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-seal",
+    "title": "再次领养 seal",
+    "price": 200,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-sheep",
+    "title": "再次领养 sheep",
+    "price": 140,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-squirrel",
+    "title": "再次领养 squirrel",
+    "price": 90,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-sun",
+    "title": "再次领养 sun",
+    "price": 150,
+    "namespace": "pet"
+  },
+  {
+    "id": "adopt-tiger",
+    "title": "再次领养 tiger",
+    "price": 200,
+    "namespace": "pet"
+  },
+  {
+    "id": "upgrade-water-2",
+    "title": "water Lv.2",
+    "price": 240,
+    "namespace": "pet"
+  },
+  {
+    "id": "upgrade-water-3",
+    "title": "water Lv.3",
+    "price": 480,
+    "namespace": "pet"
+  },
+  {
+    "id": "upgrade-feeder-2",
+    "title": "feeder Lv.2",
+    "price": 360,
+    "namespace": "pet"
+  },
+  {
+    "id": "upgrade-feeder-3",
+    "title": "feeder Lv.3",
+    "price": 720,
+    "namespace": "pet"
+  }
+]

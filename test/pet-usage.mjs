@@ -26,51 +26,25 @@ function service(initial = snapshot()) {
   }
 }
 function controller(source, store, statuses = []) {
-  return new PetUsageController(source, async (usage, key, current) => { await store.settleUsage(usage, key, current) }, value => statuses.push(value))
+  return new PetUsageController(source, value => statuses.push(value))
 }
-test('public usage first read baselines, later fractional deltas award once, unchanged polling writes nothing', async t => {
-  const adapter = memory(), store = new PetStore(adapter, { trustedUsageEnabled: true }), source = service(snapshot(9999)), statuses = []
-  const client = controller(source, store, statuses); t.after(() => client.dispose())
+test('partial profile aggregates never mint, queue rewards, or change the legacy frontier', async t => {
+  const initial = createPetState(), adapter = memory(initial), source = service(snapshot(9999)), statuses = []
+  const client = controller(source, new PetStore(adapter, { trustedUsageEnabled: true }), statuses)
+  t.after(() => client.dispose())
   await client.start()
-  assert.equal(adapter.state().wallet.balance, 0)
-  const writes = adapter.writes()
-  for (let index = 0; index < 20; index++) await client.refresh()
-  assert.equal(adapter.writes(), writes)
-  assert.equal(statuses.filter(value => value.status === 'initializing').length, 1)
-  source.set(snapshot(10000, 1)); await client.refresh()
-  assert.equal(adapter.state().wallet.balance, 0)
-  source.set(snapshot(19999, 2)); await client.refresh()
-  assert.equal(adapter.state().wallet.balance, 1)
-  assert.equal(adapter.state().receipts.length, 1)
-  assert.equal(statuses.at(-1).status, 'ready')
-  assert.equal(statuses.at(-1).coverage, 'partial')
-})
-test('two clients share a frontier, restart does not remint, and a new epoch never credits history', async t => {
-  const adapter = memory(), source = service(), a = controller(source, new PetStore(adapter, { trustedUsageEnabled: true })), b = controller(source, new PetStore(adapter, { trustedUsageEnabled: true }))
-  t.after(() => { a.dispose(); b.dispose() })
-  await Promise.all([a.start(), b.start()])
-  source.set(snapshot(20000, 1)); await Promise.all([a.refresh(), b.refresh()])
-  assert.equal(adapter.state().wallet.balance, 2)
-  a.dispose()
-  const restarted = controller(source, new PetStore(adapter, { trustedUsageEnabled: true })); t.after(() => restarted.dispose())
-  await restarted.start()
-  assert.equal(adapter.state().wallet.balance, 2)
-  source.set(snapshot(1000000, 50, 'epoch-2')); await restarted.refresh()
-  assert.equal(adapter.state().wallet.balance, 2)
-  source.set(snapshot(1010000, 51, 'epoch-2')); await restarted.refresh()
-  assert.equal(adapter.state().wallet.balance, 3)
-})
-test('rollback, same revision with changed counters and malformed public totals are unavailable without credit', async t => {
-  const adapter = memory(), source = service(), statuses = [], client = controller(source, new PetStore(adapter, { trustedUsageEnabled: true }), statuses)
-  t.after(() => client.dispose()); await client.start()
-  source.set(snapshot(20000, 2)); await client.refresh()
-  const writes = adapter.writes()
-  for (const value of [snapshot(10000, 1), snapshot(30000, 2), { ...snapshot(30000, 3), inputTokens: 1 }]) {
+  for (const value of [snapshot(10000, 1), snapshot(1_000_000, 2), snapshot(2_000_000, 3, 'new-epoch')]) {
     source.set(value); await client.refresh()
-    assert.equal(statuses.at(-1).status, 'unavailable')
-    assert.equal(adapter.writes(), writes)
-    assert.equal(adapter.state().wallet.balance, 2)
+    assert.deepEqual(statuses.at(-1), { status: 'unavailable', reason: 'usage-attribution-unavailable' })
+    assert.equal(adapter.writes(), 0)
+    assert.deepEqual(adapter.state(), initial)
   }
+})
+test('malformed aggregate remains unavailable without invoking settlement', async t => {
+  const source = service({ ...snapshot(), inputTokens: 1 }), statuses = []
+  const client = new PetUsageController(source, status => statuses.push(status))
+  t.after(() => client.dispose()); await client.start()
+  assert.equal(statuses.at(-1).reason, 'invalid-snapshot')
 })
 test('permission invalidation fences an in-flight ready response and publishes denied status', async t => {
   const adapter = memory(), source = service(), statuses = []
@@ -87,19 +61,15 @@ test('permission invalidation fences an in-flight ready response and publishes d
   assert.equal(adapter.writes(), 0)
   assert.deepEqual(statuses.at(-1), { status: 'unavailable', reason: 'permission-denied' })
 })
-test('disposal while owner storage load is pending fences CAS and unsubscribes', async () => {
-  const adapter = memory(), source = service(), statuses = []
-  let entered, release
-  const waiting = new Promise(resolve => { entered = resolve })
-  const gate = new Promise(resolve => { release = resolve })
-  const load = adapter.load
-  adapter.load = async () => { entered(); await gate; return load() }
-  const client = controller(source, new PetStore(adapter, { trustedUsageEnabled: true }), statuses)
-  const starting = client.start(); await waiting
-  client.dispose(); release(); await starting
-  assert.equal(adapter.writes(), 0)
+test('disposal during a public read fences publication and unsubscribes', async () => {
+  let release
+  const source = service(), statuses = []
+  source.read = () => new Promise(resolve => { release = resolve })
+  const client = new PetUsageController(source, status => statuses.push(status))
+  const starting = client.start()
+  client.dispose(); release(snapshot(100000, 20)); await starting
   assert.equal(source.listeners(), 0)
-  assert.equal(statuses.at(-1).status, 'initializing')
+  assert.deepEqual(statuses, [{ status: 'initializing' }])
 })
 test('thousands of usage increments keep a compact permanent frontier and one income record', () => {
   let state = settlePetUsage(createPetState(), { sourceId: 'host', totalTokens: 0, revision: 0 }, { key: 'baseline', now: 0 }).state

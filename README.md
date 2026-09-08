@@ -15,7 +15,7 @@ A small pet system living on Composer, with 32 native OneWorks Avatar characters
 
 Open Pet from a companion's context menu or the settings navigation. Use food, water and owned outfits directly from the selected pet's care panel. Skins unlock once and can be equipped independently on compatible companions. Consumables support quantity purchases; species unlocks and companion adoption are separate transactions.
 
-Authorized local Token usage earns pet coins from newly observed, validated input and output totals. The first connection establishes a baseline; partial local coverage and unavailable states are shown explicitly, without creating a test balance. Pet coins do not consume model quota. See the [pet system guide](docs/pet-system.md) for care timing, recovery and implementation boundaries.
+Pet can bind an economy instance and account shared with games. Purchases use durable server receipts and recoverable local delivery. Existing saves are backed up before a controlled one-time import; local balances are not trusted cloud assets. Future attributed v2 root work keeps the original 10,000-token reward rate through a separately authorized, prefunded and capped sponsor source. Profile aggregates and unavailable periods never accrue deferred rewards. See [shared economy and migration](docs/shared-economy.md) and the [pet system guide](docs/pet-system.md).
 
 ## Development
 
@@ -25,7 +25,7 @@ npm run check
 npm run dev
 ```
 
-The `cordisx` development dependency is pinned to canonical merged Host `b75fa2c6f9563924feca271242e2709c136033a3`. This integration requires the Host revisions providing bounded Manager fill seats, verified local-development usage authorization and Composer menu v2. Protocol is merged at `04fb46ec758a89f58506fe5141f91a81d583f8e0`. Do not use the older release baseline below for this source tree.
+This experimental economy branch uses exact source-built package artifacts recorded in [the economy dependency record](.development/economy-dependencies.json): Host `4fb60431564931441927c474dd35188f6596274b`, Protocol `8adc1aab908263e692bd56ca6165b9aeadabe4b9`, and Economy `80aa91c6168126ac2b164446cd365d2f7c6249a2`. The Host package includes public HTTP authorization; native App/Keychain interaction has not been verified. Unit/HTTP integration evidence is separate from native acceptance. Do not use the older release baseline below for this source tree.
 
 Avatar dependency provenance is recorded in [the source dependency record](.development/README.md), including the exact source commit and tarball checksum. A tarball built from merged source is not an npm publication; the package manifest and lockfile identify the actual artifact. Avatar React rc.9 is built from canonical merged commit `a06ba84c123cf82e2b1a59c36b403392e22f9d08`; the core is pinned to registry rc.9.
 
