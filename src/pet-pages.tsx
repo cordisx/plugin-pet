@@ -3,7 +3,8 @@ import { initialPetAttributes, foodEffect } from './pet-attributes.js'
 import { initialPetTraits, PET_PERSONALITIES } from './pet-traits.js'
 import { careWarning, initialPetCare, petWeightLabel } from './pet-care.js'
 import { useEffect, useLayoutEffect, useRef, useMemo, useState, useSyncExternalStore } from 'cordisx/react'
-import { Avatar } from '@oneworks/avatar-react'
+import { Avatar, type AvatarHandle } from '@oneworks/avatar-react'
+import { usePortraitExpression } from './pet-portrait-expression.js'
 import { resolveSeededAvatarView } from '@oneworks/avatar'
 import { Button, Card, EmptyState, Select, Stack, Text } from 'cordisx/ui'
 import { PET_CATALOG, PET_DEFAULT_SKINS, PET_ECONOMY, petProduct } from './pet-catalog.js'
@@ -78,7 +79,7 @@ function ProductActions({ item, state, busy, run, quantity = 1 }: Commands & { i
   </Stack>{reason && !owned && <Text tone="muted">{reason}</Text>}</Stack>
 }
 function ProductPreview({ item, peek = false }: { item: PetProduct; peek?: boolean }) {
-  return item.kind === 'pet' || item.kind === 'skin' ? <Preview entity={productEntity(item)} peek={peek} /> : <div className="pet-preview-stage"><PetFoodArt id={item.id} /></div>
+  return item.kind === 'pet' || item.kind === 'skin' ? <div className="pet-preview-stage pet-product-portrait"><AlbumPortrait entity={productEntity(item)} /></div> : <div className="pet-preview-stage"><PetFoodArt id={item.id} /></div>
 }
 function Shop(props: Commands) {
   const { state, busy, navigation } = props
@@ -91,7 +92,7 @@ function Shop(props: Commands) {
     <Stack direction="row" gap="small" wrap align="center"><div className="pet-filters" role="group" aria-label="商品类型">{[['all','全部'],['pet','宠物'],['skin','皮肤'],['food','食物'],['item','道具'],['device','设备']].map(([id,label]) => <Button key={id} disabled={busy} aria-pressed={filter === id} variant={filter === id ? 'primary' : 'ghost'} onClick={() => { setFilter(id!); if (navigation) navigation.session.filter = id! }}><Glyph kind={id === 'all' ? 'shop' : id === 'pet' ? 'paw' : id === 'skin' ? 'outfit' : id === 'food' ? 'food' : id === 'device' ? 'settings' : 'luck'} />{label}</Button>)}</div>
       <label className="pet-check"><input type="checkbox" checked={hideOwned} disabled={busy} onChange={event => { setHideOwned(event.target.checked); if (navigation) navigation.session.hideOwned = event.target.checked }} />隐藏已拥有</label>
     </Stack>
-    <div ref={shelf.ref} className="pet-shelf" data-wide={shelf.wide} data-reduced-motion={state.settings.reducedMotion}><div className="pet-tile-grid pet-shop-grid">{products.map(item => <button type="button" key={item.id} className="pet-tile" data-kind={item.kind} aria-pressed={selected === item.id} data-pet-anchor={item.id} onClick={() => { setSelected(item.id); if (navigation) { navigation.session.product = item.id; navigation.session.anchor = item.id; if (!shelf.wide) navigation.open('product-detail') } }}><ProductPreview item={item} peek /><span className="pet-tile-copy"><strong title={item.name}>{item.name}</strong><span className="pet-badge">{ownedProduct(state,item) ? state.pets.some(pet => pet.skinId === item.id) ? '已装备' : '已拥有' : item.price === 0 ? '免费' : <><Glyph kind="coin" />{item.price.toLocaleString()}</>}</span></span></button>)}</div>
+    <div ref={shelf.ref} className="pet-shelf" data-wide={shelf.wide} data-reduced-motion={state.settings.reducedMotion}><div className="pet-tile-grid pet-shop-grid" data-portraits={filter === 'pet' || filter === 'skin'}>{products.map(item => <button type="button" key={item.id} className="pet-tile" data-kind={item.kind} aria-pressed={selected === item.id} data-pet-anchor={item.id} onClick={() => { setSelected(item.id); if (navigation) { navigation.session.product = item.id; navigation.session.anchor = item.id; if (!shelf.wide) navigation.open('product-detail') } }}><ProductPreview item={item} peek /><span className="pet-tile-copy"><strong title={item.name}>{item.name}</strong><span className="pet-badge">{ownedProduct(state,item) ? state.pets.some(pet => pet.skinId === item.id) ? '已装备' : '已拥有' : item.price === 0 ? '免费' : <><Glyph kind="coin" />{item.price.toLocaleString()}</>}</span></span></button>)}</div>
       {shelf.wide && <aside className="pet-inspector" aria-label="选中商品详情">{products.some(item => item.id === selected) ? <ProductDetail key={selected} {...props} productId={selected} /> : <EmptyState title="挑一件喜欢的" description="选择左侧商品，查看外观与解锁方式。" />}</aside>}
     </div>
     {!products.length && <EmptyState title="没有符合条件的商品" description="试试其他分类，或显示已拥有的商品。" />}
@@ -186,13 +187,18 @@ function CareActions(props: Commands & { entity: PetEntity }) {
     <div className="pet-care-panel">{panel === 'devices' && <div className="pet-device-list">{PET_CATALOG.filter(item=>item.device).map(item=><DeviceControl key={item.id} {...props} item={item} />)}</div>}{panel === 'food' && <FeedingTray {...props} />}{panel === 'water' && <div className="pet-water-use"><PetFoodArt id="water" /><span title="本次恢复饮水"><Glyph kind="water" /> +{Math.min(35,100-entity.care.hydration).toFixed(0)}</span><Button variant="ghost" className="pet-care-icon" aria-label="喝水" title="喝水" disabled={busy || entity.care.hydration >= 100} onClick={() => run({type:'water',petId:entity.id})}><Glyph kind="water" /></Button></div>}{panel === 'skin' && <><div className="pet-outfit-rail">{skins.map(item => <button className="pet-outfit-choice" key={item.id} aria-pressed={skin === item.id} onClick={() => setSkin(item.id)}><Preview entity={entity} skinId={item.id} /><span>{item.name}{entity.skinId === item.id ? ' · 已穿戴' : ''}</span></button>)}</div><div className="pet-food-use"><Button disabled={busy || skin === entity.skinId} onClick={() => run({type:'equip',petId:entity.id,skinId:skin})}>{skin === entity.skinId ? '已穿戴' : '穿上这件'}</Button><Button variant="ghost" onClick={() => { if(navigation){navigation.session.filter='skin';navigation.open('shop')} }}>更多装扮</Button></div></>}{panel === 'play' && <div className="pet-inline-use"><Glyph kind="smile" /><div><strong>{PET_PERSONALITIES[entity.traits.personality].name}的{entity.name}</strong><p>{PET_PERSONALITIES[entity.traits.personality].description}</p></div><Button disabled={busy || sleeping} onClick={() => run({type:'interact',petId:entity.id})}>陪它玩</Button></div>}</div>
   </div>
 }
-function AlbumPortrait({ entity }: { entity: PetEntity }) {
+function AlbumPortrait({ entity, expressive = false }: { entity: PetEntity; expressive?: boolean }) {
+  const root = useRef<HTMLDivElement>(null)
+  const avatar = useRef<AvatarHandle>(null)
+  usePortraitExpression(root, avatar, entity.id, expressive && entity.status === 'alive')
   const definition = useMemo(() => {
     const appearance = petAppearance(entity)
-    return { ...appearance, scene: { ...appearance.scene, view: { ...resolveSeededAvatarView(`pet-${entity.id}`, appearance.scene.view), roll: peekPose(entity.id).angle * Math.PI / 180 } } }
+    const view = resolveSeededAvatarView(`pet-${entity.id}`, appearance.scene.view)
+    // A small inward lean supports the crop instead of tipping the whole head over.
+    return { ...appearance, scene: { ...appearance.scene, view: { ...view, roll: -Math.sign(view.positionX) * 7 * Math.PI / 180 } } }
   }, [entity.id, entity.species, entity.skinId])
   const tint = entity.skinId.includes('orange') ? '#34253e' : entity.species === 'dog' ? '#1853cb' : entity.species === 'rabbit' ? '#f28d40' : '#7cb7f4'
-  return <div className="pet-album-art" style={{ '--pet-album-tint': tint } as import('cordisx/react').CSSProperties}><div className="pet-album-avatar"><Avatar definition={definition} interactive={false} autoplay={false} aria-label={`${entity.name}外观预览`} style={{ width: '100%', height: '100%' }} /></div></div>
+  return <div ref={root} className="pet-album-art" style={{ '--pet-album-tint': tint } as import('cordisx/react').CSSProperties}><div className="pet-album-avatar"><Avatar ref={avatar} definition={definition} interactive={false} autoplay={false} aria-label={`${entity.name}外观预览`} style={{ width: '100%', height: '100%' }} /></div></div>
 }
 function Pets(props: Commands) {
   const { state, navigation, busy } = props
@@ -204,7 +210,7 @@ function Pets(props: Commands) {
   const active = state.activePetIds.includes(entity.id)
   const warning = alive ? careWarning(entity.care) : entity.status === 'dead' ? '已逝去' : '已安葬'
   return <div className="pet-album" data-reduced-motion={state.settings.reducedMotion}>
-    <div ref={gallery} className="pet-album-gallery" role="group" aria-label="选择宠物">{state.pets.map((pet) => <button type="button" className="pet-album-portrait" key={pet.id} aria-label={`${pet.name}${pet.id === state.mainPetId ? "，主宠" : ""}`} title={pet.name} aria-pressed={entity.id === pet.id} onClick={() => { setSelected(pet.id); if (navigation) navigation.session.selectedPet = pet.id }}><AlbumPortrait entity={pet} />{pet.status !== 'alive' && <span className="pet-album-status">{pet.status === 'dead' ? '已逝去' : '已安葬'}</span>}</button>)}</div>
+    <div ref={gallery} className="pet-album-gallery" role="group" aria-label="选择宠物">{state.pets.map((pet) => <button type="button" className="pet-album-portrait" key={pet.id} aria-label={`${pet.name}${pet.id === state.mainPetId ? "，主宠" : ""}`} title={pet.name} aria-pressed={entity.id === pet.id} onClick={() => { setSelected(pet.id); if (navigation) navigation.session.selectedPet = pet.id }}><AlbumPortrait entity={pet} expressive={!state.settings.reducedMotion} />{pet.status !== 'alive' && <span className="pet-album-status">{pet.status === 'dead' ? '已逝去' : '已安葬'}</span>}</button>)}</div>
     <section className="pet-album-care" aria-label="选中宠物"><div className="pet-album-summary"><button type="button" className="pet-album-selected-name" aria-label={`查看${entity.name}详情`} onClick={() => { if (navigation) { navigation.session.selectedPet = entity.id; navigation.open('pet-detail') } }}>{entity.name}</button><span className="pet-album-stat" title="亲密度" aria-label={`亲密度 ${entity.affinity}`}><Glyph kind="heart" /> {entity.affinity}</span><span className="pet-album-stat" title="饱食度" aria-label={`饱食度 ${Math.round(entity.care.fullness)}`}><Glyph kind="food" /> {Math.round(entity.care.fullness)}</span></div>
       {warning !== '状态良好' && <Text tone={alive ? 'muted' : 'danger'}>{warning}</Text>}
       <CareActions key={entity.id} {...props} entity={entity} />
@@ -382,16 +388,21 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       .pet-tile-copy .pet-badge{font-size:11px}
       .pet-tile[data-kind=food]>.pet-preview-stage,.pet-tile[data-kind=item]>.pet-preview-stage{padding:12px}
       .pet-shop-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,78px),1fr));gap:16px 12px;padding:3px 4px 10px}
+      .pet-shop-grid[data-portraits=true]{grid-template-columns:repeat(auto-fill,minmax(min(100%,120px),1fr));gap:12px}
+      .pet-product-portrait{position:relative;width:100%;aspect-ratio:1;min-height:120px}
+      .pet-tile .pet-product-portrait{min-height:0}
+      .pet-product-portrait .pet-album-art{border-radius:12px}
       .pet-shop-grid .pet-tile{min-height:0;height:auto;box-sizing:border-box;aspect-ratio:1;padding:0;border-radius:10px;outline:1px solid transparent;outline-offset:2px}
       .pet-shop-grid .pet-tile[data-kind]>.pet-preview-stage{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:1;padding:0;border-radius:0;background:transparent;outline:none}
       .pet-shop-grid .pet-tile:hover{outline-color:color-mix(in srgb,currentColor 24%,transparent)}
-      .pet-shop-grid .pet-tile[aria-pressed=true],.pet-shop-grid .pet-tile:focus-visible{outline-color:#ed965a}
+      .pet-shop-grid .pet-tile[aria-pressed=true],.pet-shop-grid .pet-tile:focus-visible{outline-color:#ed965a;outline-width:2px}
       .pet-shop-grid .pet-preview-stage>img{width:82%;height:82%;max-width:100%;object-fit:contain}
       .pet-shop-grid .pet-tile-copy{position:absolute;inset:0;display:block;padding:0;pointer-events:none}
       .pet-shop-grid .pet-tile-copy strong{position:absolute;bottom:3px;left:1px;max-width:calc(100% - 8px);box-sizing:border-box;padding:4px 6px;background:#fff4df;color:#433423;border-radius:2px;font-size:10px;line-height:1.15;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:rotate(-3deg)}
       .pet-shop-grid .pet-tile:nth-child(even) .pet-tile-copy strong{transform:rotate(2deg)}
       .pet-shop-grid .pet-badge{position:absolute;top:0;right:1px;display:flex;align-items:center;gap:3px;font-size:10px;line-height:16px;opacity:.85}
       .pet-content[data-section=shop] .pet-product-detail .pet-preview-stage{background:transparent}
+      .pet-shop-grid .pet-tile[data-kind=pet] .pet-badge,.pet-shop-grid .pet-tile[data-kind=skin] .pet-badge{top:5px;right:5px;padding:1px 5px;border-radius:5px;background:#17191dc9;color:#fff;opacity:1}
       .pet-shop-grid .pet-badge .pet-glyph{width:12px;height:12px}
       .pet-character-layout{container-type:inline-size;padding:24px 18px;box-sizing:border-box}
       .pet-character{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:36px;align-items:start;max-width:840px;margin-inline:auto}
