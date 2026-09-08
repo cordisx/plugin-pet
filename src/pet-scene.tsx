@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'cordisx/react'
-import { Avatar } from '@oneworks/avatar-react'
+import { Avatar } from '@oneworks/avatar-react/renderer'
 import { type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/avatar'
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import { createPetShapeTimeline } from './pet-scene-shape.js'

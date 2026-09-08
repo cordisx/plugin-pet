@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'cordisx/react'
-import { Avatar } from '@oneworks/avatar-react'
+import { Avatar } from '@oneworks/avatar-react/renderer'
 import { resolveAvatarAnimationFrame, type AvatarDefinition, type AvatarAnimationTimeline } from '@oneworks/avatar'
 import { advanceDeformationTime, liftedCatTimeline } from './avatar-deformation.js'
 import { upperCatExpression } from './avatar-expression.js'

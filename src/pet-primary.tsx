@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'cordisx/react'
-import { Avatar } from '@oneworks/avatar-react'
+import { Avatar } from '@oneworks/avatar-react/renderer'
 import { resolveAvatarAnimationFrame, type AvatarDefinition } from '@oneworks/avatar'
 import type { CordisXReactVisualProps } from 'cordisx/contracts'
 import type { PetClient } from './pet-client.js'

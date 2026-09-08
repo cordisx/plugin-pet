@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from 'cordisx/react'
 import { parseAvatarAnimationClip } from '@oneworks/avatar'
-import type { AvatarHandle } from '@oneworks/avatar-react'
+import type { AvatarHandle } from '@oneworks/avatar-react/renderer'
 
 const neutral = { leftEyeHeight: 70, rightEyeHeight: 70, leftEyeWidth: 24, rightEyeWidth: 24 }
 const clip = (label: string, face: typeof neutral, durationMs: number) => parseAvatarAnimationClip({

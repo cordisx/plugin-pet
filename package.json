@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
-    "cordisx": "file:../cordisx/packages/cli",
+    "cordisx": "github:cordisx/cordisx#b75fa2c6f9563924feca271242e2709c136033a3",
     "esbuild": "0.28.2",
     "typescript": "^5.9.2",
     "vite": "8.2.2"
@@ -42,7 +42,7 @@
     "node": ">=22.19"
   },
   "dependencies": {
-    "@oneworks/avatar": "1.0.0-rc.8",
-    "@oneworks/avatar-react": "file:.development/dependencies/avatar-react-f1a366c.tgz"
+    "@oneworks/avatar": "1.0.0-rc.9",
+    "@oneworks/avatar-react": "file:.development/dependencies/avatar-react-a06ba84-rc9.tgz"
   }
 }

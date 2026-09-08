@@ -2,7 +2,7 @@
 
 The prebuilt runtime bundles the following MIT-licensed libraries. React is provided by the Host.
 
-## @oneworks/avatar 1.0.0-rc.8
+## @oneworks/avatar 1.0.0-rc.9
 
 MIT License
 
@@ -27,9 +27,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @oneworks/avatar-react 1.0.0-rc.8
+## @oneworks/avatar-react 1.0.0-rc.9
 
-This development checkout includes the native preset palette/coat fix from source commit `f1a366cfc7ebf5c47ccbab10c9d070366f7d5936`. It is a local candidate, not the registry rc.8 artifact. Exact source and integrity are recorded in `.development/README.md`.
+This checkout uses a renderer package built from canonical merged source `a06ba84c123cf82e2b1a59c36b403392e22f9d08` (Avatar PR #39), not an npm registry publication of Avatar React rc.9. Exact source and integrity are recorded in `.development/README.md` and `.development/SOURCE.json`.
 
 MIT License
 
@@ -55,4 +55,4 @@ SOFTWARE.
 
 ## Native Avatar preview assets
 
-Pet preview images are generated from the MIT-licensed Avatar renderer and native preset definitions identified above. Source revisions, generation definitions, and per-file integrity are recorded in `src/assets/pet-preview/SOURCE.json`; the accompanying license is retained in that directory.
+Pet preview images were generated from the MIT-licensed Avatar renderer and native preset definitions at `f1a366cfc7ebf5c47ccbab10c9d070366f7d5936`. These checked-in images retain their original generation provenance separately from the current runtime dependency. Source revisions, generation definitions, and per-file integrity are recorded in `src/assets/pet-preview/SOURCE.json`; the accompanying license is retained in that directory.

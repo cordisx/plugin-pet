@@ -25,7 +25,7 @@ test('release keeps every indexed lazy graph file with its original digest', asy
   const modules = artifact.files.filter(file => file.kind === 'module')
   assert.ok(modules.some(file => Array.isArray(file.dynamicImports) && file.dynamicImports.length > 0))
   for (const file of modules) {
-    for (const [field, kind] of [['imports','module'], ['dynamicImports','module'], ['styles','style'], ['assets','asset']]) {
+    for (const [field, kind] of [['imports','module'], ['dynamicImports','module'], ['styles','stylesheet'], ['assets','asset']]) {
       assert.ok(Array.isArray(file[field]), `${file.path}: ${field}`)
       for (const target of file[field]) assert.equal(indexed.get(target)?.kind, kind, `${file.path} -> ${target}`)
     }
