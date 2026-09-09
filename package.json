@@ -33,10 +33,11 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
-    "cordisx": "github:cordisx/cordisx#b75fa2c6f9563924feca271242e2709c136033a3",
+    "cordisx": "github:cordisx/cordisx#3cfe370eb7abf33e16686fbd82659cd441247fbd",
     "esbuild": "0.28.2",
     "typescript": "^5.9.2",
-    "vite": "8.2.2"
+    "vite": "8.2.2",
+    "@cordisx/protocol": "github:cordisx/cordisx-protocol#f46dd21e15a949a26f05f89bf11dea339fc60c02"
   },
   "engines": {
     "node": ">=22.19"
@@ -44,5 +45,8 @@
   "dependencies": {
     "@oneworks/avatar": "1.0.0-rc.9",
     "@oneworks/avatar-react": "file:.development/dependencies/avatar-react-a06ba84-rc9.tgz"
+  },
+  "overrides": {
+    "@cordisx/protocol": "$@cordisx/protocol"
   }
 }

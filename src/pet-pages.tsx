@@ -397,17 +397,8 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
     if (grid) grid.scrollTop = positions?.[1] ?? 0
   }, [section])
   const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
-  const [notice, setNotice] = useState<{ message: string; error?: boolean; command?: PetCommand } | null>(null)
-  useEffect(() => {
-    if (!notice || notice.error) return
-    const timer = setTimeout(() => setNotice(null), 3500)
-    return () => clearTimeout(timer)
-  }, [notice])
-  const run = (command: PetCommand) => {
-    setNotice(null)
-    void client.execute(command).then(() => { const error = client.getSnapshot().error; setNotice(error ? { message: error, error: true, command } : { message: command.type === 'water' ? '喝过水啦' : command.type === 'interact' ? '陪伴已回应' : command.type === 'feed' ? '喂食成功' : command.type === 'equip' ? '已换上新装扮' : command.type === 'buy' || command.type === 'claim' ? '已放入背包或宠物列表' : '已保存' }) }).catch(error => setNotice({ message: error instanceof Error ? error.message : '操作失败，请重试', error: true, command }))
-  }
-  if (!snapshot.state) return <EmptyState title={snapshot.error ? '暂时无法读取宠物' : '正在准备宠物…'} description={snapshot.error ?? undefined} />
+  const run = (command: PetCommand) => { void client.execute(command) }
+  if (!snapshot.state) return <EmptyState title={snapshot.error ? '暂时无法读取宠物' : '正在准备宠物…'} description={snapshot.error ? '请检查连接后重新打开宠物页面' : undefined} />
   const props = { state: snapshot.state, busy: snapshot.busy, usage: snapshot.usage, run, navigation, sleep: client.requestSleep, wake: client.requestWake, restingPetIds: snapshot.restingPetIds }
   return <Stack fill gap="medium" className="pet-page-layout" aria-busy={snapshot.busy}>
     <style>{`
@@ -417,8 +408,6 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       .pet-toolbar nav{display:flex;align-items:center;gap:6px;margin-inline-end:12px}
       .pet-content{flex:1;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
       .pet-content[data-section=shop],.pet-content[data-section=bag]{overflow:hidden;display:flex;flex-direction:column}
-      .pet-toast{position:absolute;z-index:5;right:12px;bottom:14px;display:flex;align-items:center;gap:10px;max-width:min(460px,calc(100% - 24px));box-sizing:border-box;padding:10px 14px;border:1px solid color-mix(in srgb,currentColor 20%,transparent);border-radius:12px;background:var(--cx-surface-raised,Canvas);color:var(--cx-text,CanvasText)}
-      .pet-toast>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
       .pet-product-title{font-size:22px;line-height:1.2;margin:0}
       .pet-product-facts{display:flex;flex-wrap:wrap;gap:14px}.pet-product-facts>span{display:flex;gap:8px;align-items:flex-start;font-size:12px}.pet-product-facts>span>span{display:flex;flex-direction:column;gap:5px}.pet-product-facts strong{font-size:14px;font-weight:600}
       .pet-quantity,.pet-purchase-total{display:flex;align-items:center;justify-content:space-between;gap:10px}.pet-quantity>div{display:flex;align-items:center;gap:4px;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:10px}.pet-quantity input{width:44px;min-width:0;padding:6px 0;text-align:center;border:0;background:transparent;color:inherit;font:inherit;appearance:textfield}.pet-quantity input::-webkit-inner-spin-button{appearance:none}.pet-purchase-total strong{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.pet-purchase-total>span{font-size:12px;opacity:.7}.pet-recipient{display:flex;flex-direction:column;gap:10px}
@@ -542,8 +531,6 @@ export function PetPage({ client, section: initialSection, navigation: routeNavi
       .pet-outfit-rail{display:flex;gap:10px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px}.pet-outfit-choice{flex:0 0 120px;color:inherit;background:transparent;border:1px solid transparent;padding:4px;border-radius:12px;cursor:pointer}.pet-outfit-choice[aria-pressed=true]{border-color:#ed965a}.pet-outfit-choice .pet-preview-stage{height:auto;aspect-ratio:1;--pet-portrait-radius:12px}.pet-outfit-choice .pet-page-preview{max-width:110px;max-height:110px}.pet-outfit-choice span{font-size:11px}.pet-exploration{font-size:12px;opacity:.7}
     `}</style>
     <PetToolbar section={section} state={snapshot.state} navigation={navigation} back={['pets', 'shop', 'bag'].includes(initialSection) && !['pets', 'shop', 'bag'].includes(section) ? () => navigation?.open(section === 'product-detail' || section === 'ledger' ? 'shop' : section === 'bag-detail' ? 'bag' : 'pets') : undefined} />
-    {snapshot.error && !notice && <Text role="alert" tone="danger">{snapshot.error}</Text>}
-    {notice && <div className="pet-toast" role={notice.error ? 'alert' : 'status'}><span>{notice.error ? '!' : '✓'}</span><span>{notice.message}</span>{notice.error && notice.command && <Button variant="ghost" disabled={snapshot.busy} onClick={() => run(notice.command!)}>重试</Button>}<Button variant="ghost" aria-label="关闭提示" onClick={() => setNotice(null)}>×</Button></div>}
     <div ref={content} className="pet-content" data-section={section}>
     {section === 'shop' ? <Shop {...props} /> : section === 'pets' ? <Pets {...props} /> : section === 'bag' ? <Bag {...props} />
       : section === 'pet-detail' ? <PetDetail {...props} /> : section === 'product-detail' || section === 'bag-detail' ? <ProductDetail {...props} inventory={section === 'bag-detail'} /> : section === 'settings' ? <Settings {...props} /> : <Ledger state={snapshot.state} usage={snapshot.usage} />}

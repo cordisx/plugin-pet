@@ -38,3 +38,7 @@ Download `plugin-composer-animal-0.1.1.tgz` and `SHA256SUMS` from [pet v0.1.1](h
 The earlier archive uses verified Host `d3e28dc37a357d94b0c177111fdaae4c189d14f0`. It includes the runtime graph, package manifest and dependency notices, without requiring plugin compilation. Distribution is through GitHub Release, not npm, and does not add a one-click marketplace installer.
 
 Public, MIT licensed, and listed in the [CordisX catalog](https://github.com/cordisx/marketplace/blob/main/marketplace.json). The package's `private` flag prevents accidental npm publication.
+
+## Notification feedback
+
+See [operation notifications and development dependencies](./.agents/docs/notifications.md).

@@ -43,7 +43,7 @@ export class PetClient {
   #careReady = false
   #resting: string[] = []
   readonly #unsubscribe: () => void
-  constructor(private readonly documents: Context['documents'], private readonly runtime: PetClientRuntime = defaultRuntime, usage?: UsageV1) {
+  constructor(private readonly documents: Context['documents'], private readonly runtime: PetClientRuntime = defaultRuntime, usage?: UsageV1, private readonly notifications?: Context['notifications']) {
     this.#store = new PetStore({
       load: async () => {
         if (this.#closed) throw new Error('宠物服务已关闭')
@@ -81,6 +81,7 @@ export class PetClient {
   }
   private update(value: Partial<PetClientSnapshot>): void {
     if (this.#closed) return
+    if (value.error && value.error !== this.#snapshot.error) this.notifications?.show({ kind: 'pet.operation-failed', type: 'error', message: '宠物操作未完成，请检查连接后重试' })
     this.#snapshot = { ...this.#snapshot, ...value }
     for (const listener of this.#listeners) listener()
   }
@@ -179,6 +180,7 @@ export class PetClient {
     this.update({ busy: true, error: null })
     try {
       await this.#store.execute(command, this.runtime.randomId())
+      if (!this.#closed) this.notifications?.show({ kind: 'pet.operation-completed', type: 'success', message: command.type === 'water' ? '喝过水啦' : command.type === 'interact' ? '陪伴已回应' : command.type === 'feed' ? '喂食成功' : command.type === 'equip' ? '已换上新装扮' : command.type === 'buy' || command.type === 'claim' ? '已放入背包或宠物列表' : '已保存' })
       if (command.type === 'feed' || command.type === 'water' || command.type === 'interact') this.update({ feedback: { id: command.petId, kind: command.type === 'interact' ? 'pet' : 'feed', sequence: ++this.#feedback } })
     } catch (error) {
       this.update({ error: error instanceof Error ? error.message : '操作失败，请重试' })
