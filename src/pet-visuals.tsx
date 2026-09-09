@@ -61,8 +61,6 @@ export function createPetOverlay(client: PetClient, navigate: PetNavigate) {
       onRestingChange={client.setRestingPets}
       onPositionChange={(petId, x) => { void client.execute({ type: 'move', petId, x }) }}
       onInteract={petId => { void client.execute({ type: 'interact', petId }) }} />
-      {snapshot.error && <span role="alert" style={{ position: 'absolute', top: 4, left: 8, maxWidth: 'min(320px, calc(100% - 16px))',
-        fontSize: 12, lineHeight: 1.5, padding: '4px 8px', borderRadius: 6, background: 'Canvas', color: 'CanvasText', pointerEvents: 'none' }}>{snapshot.error}</span>}
     </>
   }
 }

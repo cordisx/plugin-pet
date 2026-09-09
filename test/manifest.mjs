@@ -8,7 +8,7 @@ test('declares exact controlled render and optional pointer capabilities', () =>
   assert.equal(manifest.id, 'plugin-composer-animal')
   assert.deepEqual(manifest.capabilities.map(item => item.name), ['usage.read', 'ui.extension-points.render', 'ui.extension-points.interact'])
   assert.deepEqual(manifest.capabilities[0], { name: 'usage.read', required: false, scope: { profile: 'current' } })
-  assert.deepEqual(inject, ['extensionPointVisuals', 'documents', 'pages', 'routes', 'slots', 'managerContent', 'usage'])
+  assert.deepEqual(inject, ['extensionPointVisuals', 'documents', 'pages', 'routes', 'slots', 'managerContent', 'usage', 'notifications'])
 })
 test('activation registers lazy visuals after loading; hiding and disposal restore native seats', async () => {
   const registered = []

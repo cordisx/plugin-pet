@@ -19,9 +19,9 @@ export const manifest = {
   ],
 } as const satisfies CordisXPluginManifestV11
 
-export const inject = ['extensionPointVisuals', 'documents', 'pages', 'routes', 'slots', 'managerContent', 'usage']
+export const inject = ['extensionPointVisuals', 'documents', 'pages', 'routes', 'slots', 'managerContent', 'usage', 'notifications']
 export function apply(ctx: Context): void {
-  const client = new PetClient(ctx.documents, undefined, ctx.usage)
+  const client = new PetClient(ctx.documents, undefined, ctx.usage, ctx.notifications)
   const navigate = installPetPages(ctx, client)
   ctx.effect(() => {
     let visuals: (() => void)[] = []
