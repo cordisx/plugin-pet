@@ -6,6 +6,7 @@
   "description": "Interactive pet companion for Composer",
   "type": "module",
   "files": [
+    "assets/icon.png",
     "dist",
     "README.md",
     "README.zh-Hans.md",
