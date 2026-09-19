@@ -1,40 +1,95 @@
-# pet
+# CordisX Pet
 
-一个住在 Composer 上的小宠物系统。接入 OneWorks Avatar 的 32 个原生角色与 142 款品种／花色，原生按钮的操作、键盘和无障碍语义由 Host 保留。
+Pet 在 CordisX Composer 中加入可互动的宠物伙伴，并提供完整的照顾、
+收藏、商店、背包与设置体验。内置 OneWorks Avatar 的 32 个原生角色和
+142 款品种／花色。[English](README.md)
 
-## 当前开发版本
+## 安装
 
-- 物种解锁与个体领养分离，同种宠物可以领养多只，各自拥有名字、性别、基础属性、性格、状态和装扮。
-- 免费猫猫附带两套皮肤与三份比特脆脆；首次解锁物种赠送一只，后续领养按页面显示的宠物币价格支付。
-- 多只宠物独立出场、左右拖动、拎起落下、滚动、跳跃和睡眠；主宠同时显示在发送按钮上。
-- Host 菜单 v2 将喂食、照料、装扮和管理分为带图标的二级菜单，旧 Host 保留平面菜单。装扮入口定位到当前个体，支持直接解锁并穿戴皮肤。
-- 饱食、饮水、精力、心情、健康、体重和亲密度独立保存；代谢、吸收和实际体重参与照顾计算，智力与幸运参与互动及在线探索。
-- 饮水器、喂食器共享给出场宠物，真实储水、装粮、公平轮转并可付费升级；不会凭空产生食物。
-- **离线暂停照顾计时**。在线长期饥饿或缺水会损害健康，死亡后可安葬或消耗复活图腾复活，保留身份和外观。
-- 商店与背包使用 Avatar 原生静态快照和限量图片预缓存，悬停不创建动态头像；伙伴肖像保留稀疏表情并尊重减少动态效果设置。
-
-从宠物右键菜单，或设置导航中的「宠物」进入。首页直接选择食物、饮水和已拥有的装扮；兼容宠物共享已解锁皮肤，但独立穿戴。消耗品支持批量购买，物种解锁和再次领养分别计费。
-
-授权后，新增且经过确认的本机输入与输出 Token 用量可以积累宠物币。首次连接只建立起点，部分覆盖与暂不可用状态会明确显示，不生成测试余额。宠物币不扣减模型额度。详细计时、恢复和开发边界见[宠物系统说明](docs/pet-system.md)。
-
-## 开发
+先登记公开 CordisX Marketplace 源，再使用 manifest id 安装精确版本：
 
 ```sh
-npm install
-npm run check
-npm run dev
+npx cordisx@beta source add https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --yes
+npx cordisx@beta plugin install plugin-composer-animal --source https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --version 0.1.2
 ```
 
-开发依赖精确固定为正式合入的 Host `b75fa2c6f9563924feca271242e2709c136033a3`。本次集成需要提供 Manager 内容填充、本地开发用量权限和 Composer 菜单 v2 的 Host 修订。Protocol 已合入 `04fb46ec758a89f58506fe5141f91a81d583f8e0`。 下方旧安装包的基线不适用于当前源码。
+`--source` 只选择已经登记并启用的发现源，不会临时登记该源，也不会把它
+自动设为信任根。`--yes` 只确认源管理操作，不会批准插件权限。CLI 不支持
+`id@version` 简写。
 
-Avatar 依赖的源提交与压缩包校验值见[源码依赖记录](.development/README.md)。从正式合入源码打包不等于 npm 发布，实际产物以包清单和锁文件为准；Avatar React rc.9 来自正式合并提交 `a06ba84c123cf82e2b1a59c36b403392e22f9d08`，核心精确固定为 registry rc.9。
+使用非默认 Host profile 时，请为两条命令添加相同的
+`--profile <profile>` 参数。
 
-插件只使用公开 CordisX 服务。源码更新使用 Vite 开发链路，原生依赖变化需要重新构建依赖图；完整页面重载可恢复遗留的 React 模块代际，本次没有宣称修复所有 Fast Refresh 降级场景。Launcher 验证的本地开发视觉和用量权限无需反复审核；正式安装的插件仍需正常权限审核，不隐含麦克风权限。
+## 环境要求
 
-## 已发布的旧版本
+- CordisX `0.1.0-beta.11` 或更高的兼容 Host。
+- 能访问 GitHub Release 制品和公开 Marketplace feed 的网络环境。
+- 允许插件在受控的 Composer 视觉位置渲染；交互权限按需授权。
+- 若要通过本机用量获取宠物币，需要可选的当前 profile 用量权限。
 
-[pet v0.1.1](https://github.com/cordisx/plugin-pet/releases/tag/v0.1.1) 提供 `plugin-composer-animal-0.1.1.tgz` 与 `SHA256SUMS`。**该安装包只有原先的单宠物体验，不包含上述新养成系统。** 校验、解压后，将现有 CordisX 配置的 pet 入口设为 `package/dist/runtime/module.js`，保留其他插件配置。
+GitHub Release 中的安装包已预构建，无需安装 npm 依赖或自行编译插件。
+包保持 `private`，用于避免意外发布到 npm。
 
-旧安装包使用已验证 Host `d3e28dc37a357d94b0c177111fdaae4c189d14f0`。GitHub Release 分发包含运行代码、安装清单和依赖许可，无需再次编译；未发布到 npm，也不增加商店一键安装能力。
+## 使用
 
-仓库公开、MIT 许可，并已登记到 [CordisX 插件目录](https://github.com/cordisx/marketplace/blob/main/marketplace.json)。包的 `private` 标记用于防止意外发布到 npm。
+完成安装和 Host 权限审核后，可从宠物右键菜单或
+**设置 > 宠物** 打开管理界面。
+
+- 领养多只伙伴，设置主宠、改名，并管理哪些宠物在 Composer 中出场。
+- 拖动、拎起、放下、滚动、跳跃、休息、唤醒、喂食、饮水、互动和装扮。
+- 在商店与背包中管理物种、皮肤、食物、复活道具、饮水器和喂食器。
+- 分别管理每只宠物的饱食、饮水、精力、心情、健康、体重、亲密度、
+  自动设备和在线探索。
+- 可选择授权本机用量，按新增且可确认的输入与输出 Token 获取宠物币。
+  宠物币不会消耗模型额度。
+
+状态由 Host 按当前 profile、插件来源和插件身份保存。同一来源下普通重载
+或兼容升级会保留状态；不同 profile 或来源不会自动共享状态。
+
+## 重要行为
+
+- 只有应用和插件运行时才推进照顾时间；离线不会消耗食物、饮水、精力或
+  健康。
+- 在线长期饥饿或缺水可能降低健康。宠物死亡后可以安葬，或使用复活图腾
+  复活并保留身份和外观。
+- 自动喂食器需要背包中的食物，饮水器需要手动补水；设备不会凭空生成或
+  自动购买补给。
+- 首次成功连接用量数据只建立基线，不会把历史用量兑换成测试余额，也不会
+  估算不可用或不完整的区间。
+- 减少动态效果会停用大幅动作和重复表情动画，但不会关闭核心照顾逻辑。
+
+详细照顾规则、成长、存档、设备和目录行为见
+[宠物系统说明](docs/pet-system.md)。
+
+## 权限
+
+Pet 请求在 Composer 主操作按钮和框架覆盖层的受控位置渲染。鼠标观察、
+拖动和激活为可选权限，并且仅限这些位置。本机用量权限同样可选，只读取
+当前 profile。Pet 不请求麦克风权限，也不读取 Composer 文本。
+
+安装和源发现不会跳过 Host 权限审核。请在 Host 的插件设置中管理权限。
+
+## 限制
+
+- 用量奖励只覆盖本机可观察到的 Codex 输入与输出总量，不是账号账单或
+  跨设备总量。
+- 应用关闭、系统休眠或持久化不可用时，照顾与探索暂停。
+- 状态只属于对应的 Host profile 和插件来源，不提供账号同步或跨设备迁移。
+- 当前版本已完成安装包和运行图验证；本文不宣称已在所有 Host 环境中完成
+  真实安装或激活测试。
+
+## 排错
+
+- **找不到源或插件：** 先运行 `source add`，并使用准确的 manifest id
+  `plugin-composer-animal` 与 `--version 0.1.2`。
+- **宠物没有显示：** 在设置中启用 Pet，保持至少一只存活伙伴处于出场状态，
+  并检查 Composer 渲染权限。
+- **无法拖动或互动：** 在 Host 设置中检查 Pet 的可选交互权限。
+- **用量奖励不可用：** 检查当前 profile 的可选用量权限。未授权时已有宠物
+  状态和宠物币仍会保留。
+- **状态无法保存：** 检查 Host 诊断和本地存储空间。Pet 会拒绝不安全的写入，
+  不会静默重置收藏或钱包。
+
+Pet 采用 MIT 许可证公开发布，并通过
+[CordisX Marketplace](https://github.com/cordisx/marketplace/blob/main/marketplace.json)
+分发。

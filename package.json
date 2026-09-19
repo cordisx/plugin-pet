@@ -1,6 +1,6 @@
 {
   "name": "plugin-composer-animal",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "license": "MIT",
   "description": "Interactive pet companion for Composer",
