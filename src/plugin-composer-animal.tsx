@@ -1,10 +1,13 @@
 import '@oneworks/avatar-react/renderer.css'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineReactVisual } from 'cordisx/react'
-import { CORDISX_PLUGIN_MANIFEST_SCHEMA_V11, type CordisXPluginManifestV11 } from 'cordisx/contracts'
+import { CORDISX_PLUGIN_MANIFEST_SCHEMA_V11, type CordisXPluginManifestV11, type CordisXPluginBrandIcon } from 'cordisx/contracts'
+import brandIcon from '../assets/icon.png?inline'
 
 import { PetClient } from './pet-client.js'
 import { installPetPages } from './pet-navigation.js'
+
+export const icon = { mediaType: 'image/png', data: brandIcon.split(',')[1] } as const satisfies CordisXPluginBrandIcon
 
 export const manifest = {
   $schema: CORDISX_PLUGIN_MANIFEST_SCHEMA_V11,

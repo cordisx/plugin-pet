@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 let visualDefinitions = 0
 globalThis.__cordisxSharedReactRuntime = { React: {}, jsxRuntime: {}, ui: {}, defineReactPage: component => component, defineReactVisual: component => { visualDefinitions++; return component } }
-const { apply, inject, manifest } = await import('../dist/runtime/module.js')
+const { apply, inject, manifest, icon } = await import('../dist/runtime/module.js')
+test('built public brand icon preserves the selected 256px PNG bytes', async () => {
+  const png = await readFile(new URL('../assets/icon.png', import.meta.url))
+  assert.equal(icon.mediaType, 'image/png')
+  assert.deepEqual(Buffer.from(icon.data, 'base64'), png)
+  assert.equal(createHash('sha256').update(png).digest('hex'), '259888e036197964deb35af25423410d38054e765aa92c62ec280eec19da2bcb')
+  assert.equal(png.readUInt32BE(16), 256)
+  assert.equal(png.readUInt32BE(20), 256)
+})
 test('declares exact controlled render and optional pointer capabilities', () => {
   assert.equal(manifest.schemaVersion, 11)
   assert.equal(manifest.id, 'plugin-composer-animal')
