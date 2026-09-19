@@ -4,13 +4,21 @@ Pet 在 CordisX Composer 中加入可互动的宠物伙伴，并提供完整的�
 收藏、商店、背包与设置体验。内置 OneWorks Avatar 的 32 个原生角色和
 142 款品种／花色。[English](README.md)
 
-## 安装
+## 安装状态
 
-先登记公开 CordisX Marketplace 源，再使用 manifest id 安装精确版本：
+Pet `0.1.2` 已作为经过校验的预构建压缩包发布到
+[GitHub Releases](https://github.com/cordisx/plugin-pet/releases/tag/v0.1.2)，
+但目前无法通过 CordisX Marketplace CLI 安装。该压缩包的 package name 是
+未带 scope 的 `plugin-composer-animal`，而 Marketplace v3 制品契约要求带
+scope 的 package name 以及与其匹配的 package namespace。仅添加目录元数据
+无法安全地弥补这一身份不一致。
+
+请勿对 `0.1.2` 使用下列命令。未来版本明确标记为兼容 Marketplace 后，支持
+的 CLI 语法将是：
 
 ```sh
 npx cordisx@beta source add https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --yes
-npx cordisx@beta plugin install plugin-composer-animal --source https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --version 0.1.2
+npx cordisx@beta plugin install plugin-composer-animal --source https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --version <marketplace-compatible-version>
 ```
 
 `--source` 只选择已经登记并启用的发现源，不会临时登记该源，也不会把它
@@ -23,16 +31,18 @@ npx cordisx@beta plugin install plugin-composer-animal --source https://raw.gith
 ## 环境要求
 
 - CordisX `0.1.0-beta.11` 或更高的兼容 Host。
-- 能访问 GitHub Release 制品和公开 Marketplace feed 的网络环境。
+- 能访问 GitHub Release 制品的网络环境。未来兼容 Marketplace 的版本还需要
+  访问公开 Marketplace feed。
 - 允许插件在受控的 Composer 视觉位置渲染；交互权限按需授权。
 - 若要通过本机用量获取宠物币，需要可选的当前 profile 用量权限。
 
-GitHub Release 中的安装包已预构建，无需安装 npm 依赖或自行编译插件。
-包保持 `private`，用于避免意外发布到 npm。
+GitHub Release 中的压缩包已预构建，无需自行编译插件。它可用于检查和兼容
+的手动工作流，但不是可通过 Marketplace 安装的包。包保持 `private`，用于
+避免意外发布到 npm。
 
 ## 使用
 
-完成安装和 Host 权限审核后，可从宠物右键菜单或
+通过兼容工作流安装并完成 Host 权限审核后，可从宠物右键菜单或
 **设置 > 宠物** 打开管理界面。
 
 - 领养多只伙伴，设置主宠、改名，并管理哪些宠物在 Composer 中出场。
@@ -80,8 +90,8 @@ Pet 请求在 Composer 主操作按钮和框架覆盖层的受控位置渲染。
 
 ## 排错
 
-- **找不到源或插件：** 先运行 `source add`，并使用准确的 manifest id
-  `plugin-composer-animal` 与 `--version 0.1.2`。
+- **通过 Marketplace 安装 `0.1.2` 失败：** 这是上文说明的已知 package name
+  限制，并非发现源缺失。请等待明确标记为兼容 Marketplace 的后续版本。
 - **宠物没有显示：** 在设置中启用 Pet，保持至少一只存活伙伴处于出场状态，
   并检查 Composer 渲染权限。
 - **无法拖动或互动：** 在 Host 设置中检查 Pet 的可选交互权限。
@@ -90,6 +100,5 @@ Pet 请求在 Composer 主操作按钮和框架覆盖层的受控位置渲染。
 - **状态无法保存：** 检查 Host 诊断和本地存储空间。Pet 会拒绝不安全的写入，
   不会静默重置收藏或钱包。
 
-Pet 采用 MIT 许可证公开发布，并通过
-[CordisX Marketplace](https://github.com/cordisx/marketplace/blob/main/marketplace.json)
-分发。
+Pet 采用 MIT 许可证公开发布。`0.1.2` 以 GitHub Release 压缩包分发，无法
+通过 CordisX Marketplace CLI 安装。
