@@ -6,20 +6,17 @@ OneWorks Avatar characters and 142 breed and color variants. [简体中文](READ
 
 ## Installation status
 
-Pet `0.1.2` is available as a verified prebuilt archive on
-[GitHub Releases](https://github.com/cordisx/plugin-pet/releases/tag/v0.1.2),
-but it cannot currently be installed through the CordisX Marketplace CLI. Its
-archive package name is the unscoped `plugin-composer-animal`, while the
-Marketplace v3 artifact contract requires a scoped package name and matching
-package namespace. Adding catalog metadata cannot safely bridge that identity
-mismatch.
+Pet `0.1.3` uses the package name `@cordisx/plugin-pet`; its plugin ID remains
+`plugin-composer-animal`. Prebuilt archives are distributed through
+[GitHub Releases](https://github.com/cordisx/plugin-pet/releases).
 
-Do not use the commands below for `0.1.2`. After a future release is explicitly
-marked Marketplace-compatible, its supported CLI syntax will be:
+GitHub publication and Marketplace availability are separate. Use the commands
+below only after the configured Marketplace feed lists `0.1.3` with an
+installable artifact; a discovery entry alone is not enough:
 
 ```sh
 npx cordisx@beta source add https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --yes
-npx cordisx@beta plugin install plugin-composer-animal --source https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --version <marketplace-compatible-version>
+npx cordisx@beta plugin install plugin-composer-animal --source https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --version 0.1.3
 ```
 
 `--source` selects an already configured and enabled discovery source. It does
@@ -30,18 +27,22 @@ does not support an `id@version` shorthand.
 For a non-default Host profile, add the same `--profile <profile>` option to
 both commands.
 
+The older `0.1.2` archive retains its original unscoped package name. It cannot
+be installed through the scoped-only Marketplace v3 artifact path. Its release
+tag and archive have not been replaced by this package-name migration.
+
 ## Requirements
 
 - CordisX `0.1.0-beta.11` or a newer compatible Host.
-- Network access to GitHub release assets. A future Marketplace-compatible
-  release will also require access to the public Marketplace feed.
+- Network access to GitHub release assets and, for Marketplace installation,
+  the public Marketplace feed.
 - Permission to render and interact with the controlled Composer visual seats.
 - Optional access to local usage totals if you want usage-based pet coins.
 
 The GitHub release archive is prebuilt and does not require plugin compilation.
-It remains a release artifact for inspection and compatible manual workflows,
-not a Marketplace-installable package. The package is private to prevent
-accidental npm publication.
+Until its Marketplace artifact is listed, it is available only for inspection
+and compatible manual workflows. The package remains private to prevent
+accidental npm publication; do not use `npm install @cordisx/plugin-pet`.
 
 ## Use
 
@@ -106,9 +107,9 @@ permissions through the Host's plugin settings.
 
 ## Troubleshooting
 
-- **Marketplace installation of `0.1.2` fails:** this is the known package-name
-  limitation described above, not a missing-source problem. Wait for a future
-  release explicitly marked Marketplace-compatible.
+- **Marketplace installation is unavailable:** confirm that the configured,
+  enabled source lists `0.1.3` with an installable artifact. The `0.1.2` archive
+  is not supported by the scoped-only v3 artifact path.
 - **Pet is not visible:** enable Pet in its settings, keep at least one living
   companion active, and review the Composer rendering permission.
 - **Dragging or interaction is unavailable:** review the optional interaction
@@ -119,5 +120,5 @@ permissions through the Host's plugin settings.
   Pet rejects unsafe writes rather than silently resetting the collection or
   wallet.
 
-Pet is public and MIT licensed. Version `0.1.2` is distributed as a GitHub
-Release archive and is not available through the CordisX Marketplace CLI.
+Pet is public and MIT licensed. It is distributed as a GitHub Release archive,
+not an npm registry publication.

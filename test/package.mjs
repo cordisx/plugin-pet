@@ -5,6 +5,21 @@ import test from 'node:test'
 const root = new URL('../', import.meta.url)
 const json = async file => JSON.parse(await readFile(new URL(file, root), 'utf8'))
 const digest = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`
+test('package naming preserves the existing plugin identity and distribution', async () => {
+  const pkg = await json('package.json')
+  const lock = await json('package-lock.json')
+  const envelope = await json('cordisx-package.json')
+  const manifest = await json('dist/manifest.json')
+  assert.equal(pkg.name, '@cordisx/plugin-pet')
+  assert.equal(pkg.private, true)
+  assert.equal(lock.name, pkg.name)
+  assert.equal(lock.version, pkg.version)
+  assert.equal(lock.packages[''].name, pkg.name)
+  assert.equal(lock.packages[''].version, pkg.version)
+  assert.equal(envelope.id, 'plugin-composer-animal')
+  assert.equal(manifest.id, 'plugin-composer-animal')
+  assert.equal(envelope.canonicalSource, 'https://github.com/cordisx/plugin-pet')
+})
 test('portable package binds the actual runtime manifest and package version', async () => {
   const envelope = await json('cordisx-package.json')
   const pkg = await json('package.json')

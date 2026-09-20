@@ -1,6 +1,6 @@
 {
-  "name": "plugin-composer-animal",
-  "version": "0.1.2",
+  "name": "@cordisx/plugin-pet",
+  "version": "0.1.3",
   "private": true,
   "license": "MIT",
   "description": "Interactive pet companion for Composer",
