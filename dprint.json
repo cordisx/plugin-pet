@@ -1,0 +1,15 @@
+{
+  "$schema": "https://dprint.dev/schemas/v0.json",
+  "extends": "https://raw.githubusercontent.com/cordisx/cordisxmono/d23c7873ad665fbb1a7dd63d2d4d60da0db8cc0b/tooling/quality/dprint/code.json",
+  "includes": [
+    "**/*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md}"
+  ],
+  "excludes": [
+    "**/node_modules/**",
+    "**/dist/**",
+    ".cache/**",
+    ".development/dependencies/**",
+    "**/package-lock.json",
+    "cordisx-package.json"
+  ]
+}

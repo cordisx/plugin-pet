@@ -30,7 +30,9 @@
     "dev:dry-run": "cordisx dev ./src/plugin-composer-animal.tsx --dry-run",
     "test": "node --test test/*.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "format": "dprint fmt",
+    "format:check": "dprint check"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
@@ -38,7 +40,8 @@
     "esbuild": "0.28.2",
     "typescript": "^5.9.2",
     "vite": "8.2.2",
-    "@cordisx/protocol": "github:cordisx/cordisx-protocol#f46dd21e15a949a26f05f89bf11dea339fc60c02"
+    "@cordisx/protocol": "github:cordisx/cordisx-protocol#f46dd21e15a949a26f05f89bf11dea339fc60c02",
+    "dprint": "0.57.1"
   },
   "engines": {
     "node": ">=22.19"
