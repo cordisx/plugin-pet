@@ -6,19 +6,16 @@ Pet 在 CordisX Composer 中加入可互动的宠物伙伴，并提供完整的�
 
 ## 安装状态
 
-Pet `0.1.2` 已作为经过校验的预构建压缩包发布到
-[GitHub Releases](https://github.com/cordisx/plugin-pet/releases/tag/v0.1.2)，
-但目前无法通过 CordisX Marketplace CLI 安装。该压缩包的 package name 是
-未带 scope 的 `plugin-composer-animal`，而 Marketplace v3 制品契约要求带
-scope 的 package name 以及与其匹配的 package namespace。仅添加目录元数据
-无法安全地弥补这一身份不一致。
+Pet `0.1.3` 的包名为 `@cordisx/plugin-pet`，插件 ID 仍为
+`plugin-composer-animal`。预构建压缩包通过
+[GitHub Releases](https://github.com/cordisx/plugin-pet/releases) 分发。
 
-请勿对 `0.1.2` 使用下列命令。未来版本明确标记为兼容 Marketplace 后，支持
-的 CLI 语法将是：
+GitHub 发布和 Marketplace 上架是两个独立步骤。只有已配置的 Marketplace
+feed 为 `0.1.3` 列出可安装制品后，才能使用以下命令；仅有发现条目还不够：
 
 ```sh
 npx cordisx@beta source add https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --yes
-npx cordisx@beta plugin install plugin-composer-animal --source https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --version <marketplace-compatible-version>
+npx cordisx@beta plugin install plugin-composer-animal --source https://raw.githubusercontent.com/cordisx/marketplace/main/marketplace.json --version 0.1.3
 ```
 
 `--source` 只选择已经登记并启用的发现源，不会临时登记该源，也不会把它
@@ -28,17 +25,20 @@ npx cordisx@beta plugin install plugin-composer-animal --source https://raw.gith
 使用非默认 Host profile 时，请为两条命令添加相同的
 `--profile <profile>` 参数。
 
+旧版 `0.1.2` 压缩包保留原来的无 scope 包名，无法通过仅接受 scoped 包的
+Marketplace v3 制品链路安装。本次包名迁移不会覆盖旧版本的 tag 或压缩包。
+
 ## 环境要求
 
 - CordisX `0.1.0-beta.11` 或更高的兼容 Host。
-- 能访问 GitHub Release 制品的网络环境。未来兼容 Marketplace 的版本还需要
+- 能访问 GitHub Release 制品的网络环境；通过 Marketplace 安装时还需要
   访问公开 Marketplace feed。
 - 允许插件在受控的 Composer 视觉位置渲染；交互权限按需授权。
 - 若要通过本机用量获取宠物币，需要可选的当前 profile 用量权限。
 
-GitHub Release 中的压缩包已预构建，无需自行编译插件。它可用于检查和兼容
-的手动工作流，但不是可通过 Marketplace 安装的包。包保持 `private`，用于
-避免意外发布到 npm。
+GitHub Release 中的压缩包已预构建，无需自行编译插件。Marketplace 列出
+可安装制品前，它仅用于检查和兼容的手动工作流。包保持 `private`，避免意外
+发布到 npm；不要使用 `npm install @cordisx/plugin-pet`。
 
 ## 使用
 
@@ -90,8 +90,8 @@ Pet 请求在 Composer 主操作按钮和框架覆盖层的受控位置渲染。
 
 ## 排错
 
-- **通过 Marketplace 安装 `0.1.2` 失败：** 这是上文说明的已知 package name
-  限制，并非发现源缺失。请等待明确标记为兼容 Marketplace 的后续版本。
+- **Marketplace 安装不可用：** 确认已配置并启用的发现源为 `0.1.3` 列出了
+  可安装制品。仅接受 scoped 包的 v3 制品链路不支持旧版 `0.1.2` 压缩包。
 - **宠物没有显示：** 在设置中启用 Pet，保持至少一只存活伙伴处于出场状态，
   并检查 Composer 渲染权限。
 - **无法拖动或互动：** 在 Host 设置中检查 Pet 的可选交互权限。
@@ -100,5 +100,5 @@ Pet 请求在 Composer 主操作按钮和框架覆盖层的受控位置渲染。
 - **状态无法保存：** 检查 Host 诊断和本地存储空间。Pet 会拒绝不安全的写入，
   不会静默重置收藏或钱包。
 
-Pet 采用 MIT 许可证公开发布。`0.1.2` 以 GitHub Release 压缩包分发，无法
-通过 CordisX Marketplace CLI 安装。
+Pet 采用 MIT 许可证公开发布，以 GitHub Release 压缩包分发，不发布到
+npm registry。

@@ -96,10 +96,17 @@ each evidence layer separately.
 
 ## Release
 
+- The maintained package name is `@cordisx/plugin-pet`, following our internal
+  `@cordisx/plugin-*` convention. This convention does not restrict third-party
+  plugins, which may use their own scope or a valid unscoped package name.
+- Keep the runtime and portable plugin id `plugin-composer-animal` unchanged;
+  the package name is not a replacement for the existing plugin identity.
+- Version `0.1.3` migrates the package name. Preserve the `v0.1.2` tag and its
+  `plugin-composer-animal-0.1.2.tgz` asset and digest; never overwrite a release.
 - Keep `private: true`; Pet is not published to npm.
 - Release prebuilt archives through the repository's existing GitHub prerelease
   convention. Use tag `v<version>`, asset
-  `plugin-composer-animal-<version>.tgz`, and a matching `SHA256SUMS` file.
+  `cordisx-plugin-pet-<version>.tgz`, and a matching `SHA256SUMS` file.
 - Merge through a protected pull request before tagging. Do not force-push,
   bypass checks, invite reviewers, or publish from an unmerged source commit.
 - Build and pack again from the exact merged commit. Upload that exact archive,
